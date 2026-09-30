@@ -1,0 +1,32 @@
+rules_version = '2';
+
+// Loyl Firestore rules — least privilege for the single client write the app
+// performs: `users/{uid}` profile docs from `registerWithEmail`
+// (frontend/lib/firebase/email-auth.ts, best-effort with a 10s budget).
+//
+// - A signed-in user may create/update ONLY their own doc (`request.auth.uid
+//   == uid`), with ONLY the whitelisted fields (uid, email, phone,
+//   createdAt). No deletes, no reads from other clients (reads are
+//   server-side via the Admin SDK, which bypasses these rules).
+// - Everything else is denied by default (no catch-all allow).
+//
+// Deploy: firebase deploy --only firestore:rules --project loyl-df23d
+// Verify: register a second email on /welcome, then in the Firebase console
+// confirm `users/{uid}` exists with exactly {uid, email, phone?, createdAt}.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match users/{uid} {
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'phone', 'createdAt'])
+        && request.resource.data.email is string
+        && (!('phone' in request.resource.data) || request.resource.data.phone is string);
+      allow delete: if false;
+      allow read: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

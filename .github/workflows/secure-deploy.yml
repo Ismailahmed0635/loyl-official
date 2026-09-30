@@ -1,0 +1,99 @@
+name: secure-deploy
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least-privilege default: read-only
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest # ephemeral runner, destroyed after job
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # OIDC only, no stored keys
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      # Batch 1 guard: fail the build when a real secret pattern appears in a
+      # git-tracked file. Local .env files are gitignored, so they never trip this.
+      - name: Secret-leak scan (tracked files only)
+        run: |
+          set -euo pipefail
+          if git grep -n -E 'sk-proj-[A-Za-z0-9]|-----BEGIN (PRIVATE|RSA) KEY-----|AIzaSy[A-Za-z0-9_-]{20,}|xox[bap]-|ghp_[A-Za-z0-9]{20,}' -- ':!*.lock' ':!*.md' .; then
+            echo "::error::Possible secret in tracked files. Move it to Secret Manager (infra/secrets/main.tf) and remove from code."
+            exit 1
+          fi
+          echo "Secret-leak scan clean."
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm test
+
+  deploy-prod:
+    needs: build-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    permissions:
+      contents: read
+      id-token: write # short-lived OIDC token (~1h), no permanent SA key
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      # GCP auth via Workload Identity Federation — no JSON key file.
+      # Setup once: create WIF pool + provider for this repo, then replace IDs below.
+      - id: gcp-auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: deploy@loyl-df23d.iam.gserviceaccount.com
+      # Secrets resolved at runtime, masked in logs, never baked into image.
+      # Full Batch 1 set: Terraform in infra/secrets/main.tf owns these 7 names.
+      # NEXT_PUBLIC_* keys are public by design and stay as build args, not secrets.
+      - id: secrets
+        uses: google-github-actions/get-secretmanager-secrets@v2
+        with:
+          secrets: |-
+            DATABASE_URL:projects/loyl-df23d/secrets/DATABASE_URL/versions/latest
+            JWT_SECRET:projects/loyl-df23d/secrets/JWT_SECRET/versions/latest
+            ADMIN_PASSWORD:projects/loyl-df23d/secrets/ADMIN_PASSWORD/versions/latest
+            OPENAI_API_KEY:projects/loyl-df23d/secrets/OPENAI_API_KEY/versions/latest
+            CLOUDINARY_API_SECRET:projects/loyl-df23d/secrets/CLOUDINARY_API_SECRET/versions/latest
+            AWS_SECRET_ACCESS_KEY:projects/loyl-df23d/secrets/AWS_SECRET_ACCESS_KEY/versions/latest
+            FIREBASE_PRIVATE_KEY:projects/loyl-df23d/secrets/FIREBASE_PRIVATE_KEY/versions/latest
+      # Fail fast when a secret version is missing/empty — without printing values.
+      - name: Validate secrets present (no values in logs)
+        run: |
+          set -euo pipefail
+          for v in DATABASE_URL JWT_SECRET ADMIN_PASSWORD OPENAI_API_KEY CLOUDINARY_API_SECRET AWS_SECRET_ACCESS_KEY FIREBASE_PRIVATE_KEY; do
+            if [ -z "${!v:-}" ]; then echo "::error::Secret $v is empty or missing in loyl-df23d"; exit 1; fi
+          done
+          echo "All 7 Secret Manager refs resolved."
+        env:
+          DATABASE_URL: ${{ steps.secrets.outputs.DATABASE_URL }}
+          JWT_SECRET: ${{ steps.secrets.outputs.JWT_SECRET }}
+          ADMIN_PASSWORD: ${{ steps.secrets.outputs.ADMIN_PASSWORD }}
+          OPENAI_API_KEY: ${{ steps.secrets.outputs.OPENAI_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ steps.secrets.outputs.CLOUDINARY_API_SECRET }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.secrets.outputs.AWS_SECRET_ACCESS_KEY }}
+          FIREBASE_PRIVATE_KEY: ${{ steps.secrets.outputs.FIREBASE_PRIVATE_KEY }}
+      - run: npm ci --ignore-scripts && npm run build
+        env:
+          DATABASE_URL: ${{ steps.secrets.outputs.DATABASE_URL }}
+          JWT_SECRET: ${{ steps.secrets.outputs.JWT_SECRET }}
+      # Deploy with runtime secret refs (uncomment, set $IMAGE):
+      # Cloud Run resolves these at runtime — values never bake into the image.
+      # - run: |
+      #     gcloud run deploy loyl --project=loyl-df23d --region=asia-south1 \
+      #       --image="$IMAGE" \
+      #       --set-secrets=DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,ADMIN_PASSWORD=ADMIN_PASSWORD:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,CLOUDINARY_API_SECRET=CLOUDINARY_API_SECRET:latest,AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY:latest,FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest

@@ -1,0 +1,4 @@
+{
+  "$schema": "https://raw.githubusercontent.com/firebase/firebase-tools/master/schema/firebase-config.json",
+  "_note": "Phone provider is enabled in the Firebase Console (Authentication > Sign-in method), not via CLI deploy — see FIREBASE_SETUP.md. This file exists so `firebase use` has a project context."
+}

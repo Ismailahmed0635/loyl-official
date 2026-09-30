@@ -1,0 +1,22 @@
+# dependencies / build output
+node_modules/
+.next/
+out/
+
+# secrets — never commit (Vercel: set these in project settings instead)
+.env
+.env.local
+.env.*.local
+
+# prisma
+backend/prisma/*.db
+
+# local DB dumps (contain real data — never commit)
+backups/
+
+# misc
+*.tsbuildinfo
+next-env.d.ts
+.playwright-mcp/
+DEBUG.md.bak
+npm-debug.log*

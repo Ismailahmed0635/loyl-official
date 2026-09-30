@@ -1,0 +1,22 @@
+name: Audit CI
+on: [pull_request, push]
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+      - run: npx semgrep --config=auto --error
+      - run: gitleaks detect --no-git --redact --exit-code 1
+      - run: npm audit --audit-level=high
+      - run: npx playwright install --with-deps
+      - run: npx playwright test
+      - run: npx @axe-core/cli http://localhost:3000 --exit
+      - run: npx lhci autorun
+        env: { LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_TOKEN }} }

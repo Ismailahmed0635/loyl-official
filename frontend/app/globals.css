@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Sovereign Green: Plus Jakarta Sans for headlines, Inter for body/data. */
+  --font-inter: 'Inter', sans-serif;
+  --font-jakarta: 'Plus Jakarta Sans', sans-serif;
+}
+
+body {
+  background-color: #f1fcf4;
+  color: #141e19;
+  font-family: var(--font-inter);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer utilities {
+  /* Analytics metrics & stamp counters must not shift while animating. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Frosted translucency for floating headers / bottom navigation. */
+  .frost {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}

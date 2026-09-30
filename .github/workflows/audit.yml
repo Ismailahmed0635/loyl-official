@@ -1,0 +1,38 @@
+name: Audit CI
+on: [pull_request, push]
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: loyl_db
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loyl_db?schema=public
+      JWT_SECRET: ci-only-secret
+      ADMIN_PASSWORD: ci-only-admin
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npm run db:push
+      - run: npm run db:generate
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: |
+          (npx next dev frontend -p 3111 &) && sleep 25
+          node scripts/phase1-smoke.mjs http://localhost:3111
+      - uses: gitleaks/gitleaks-action@v2
+      - run: npm audit --audit-level=high
+      - run: npx semgrep --config=auto --error

@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loyl — Turn Every Visit into a Repeat Customer</title>
+<meta name="description" content="QR-based loyalty program for cafés, salons, gyms, restaurants & more. Set up in 2 minutes, no app download needed.">
+<meta name="theme-color" content="#195035">
+<!--
+  APP_ORIGIN — the Next.js app's public origin.
+  Every Sign In / Get Started / Start Free Trial CTA below points at
+  `${APP_ORIGIN}/welcome`, which is the app's single phone -> OTP entry and
+  serves BOTH a first-time registration (-> /business-setup) and a returning
+  sign-in. There is no separate register screen.
+  When the production domain is fixed, replace `http://localhost:3000`
+  everywhere in this file (it is the only origin used) and mirror it in
+  NEXT_PUBLIC_APP_URL in frontend/.env.local.
+-->
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%23195035'/%3E%3Ctext%20x='32'%20y='44'%20font-family='Inter,Arial,sans-serif'%20font-size='36'%20font-weight='800'%20fill='%23fff'%20text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<script>
+  document.documentElement.className = "js";
+  /* Failsafe: if script.js never boots, un-hide every revealed block. */
+  window.__loylFailsafe = setTimeout(function () {
+    document.documentElement.classList.remove("js");
+  }, 2500);
+</script>
+</head>
+<body>
+
+<!-- ============ ICON SPRITE ============ -->
+<svg aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
+<defs>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2.2 3.8 5.2v6.1c0 5.2 3.5 9.6 8.2 10.9 4.7-1.3 8.2-5.7 8.2-10.9V5.2L12 2.2Z"/><path d="M8.3 12.1l2.5 2.5 4.9-5" fill="none" stroke="#195035" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+
+  <symbol id="i-qr" viewBox="0 0 24 24"><path d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm9-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 14h7v7H3v-7Zm2 2v3h3v-3H5Zm9-2h3v3h-3v-3Zm4 0h3v3h-3v-3Zm-4 4h3v3h-3v-3Zm4 0h3v3h-3v-3Z"/></symbol>
+
+  <symbol id="i-scan" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5V5.4A1.4 1.4 0 0 1 5.4 4h3.1"/><path d="M20 8.5V5.4A1.4 1.4 0 0 0 18.6 4h-3.1"/><path d="M4 15.5v3.1A1.4 1.4 0 0 0 5.4 20h3.1"/><path d="M20 15.5v3.1a1.4 1.4 0 0 1-1.4 1.4h-3.1"/></g><g fill="currentColor"><rect x="7.3" y="8.6" width="1.7" height="6.8" rx=".4"/><rect x="11.2" y="8.6" width="1.7" height="6.8" rx=".4"/><rect x="15.1" y="8.6" width="1.7" height="6.8" rx=".4"/></g></symbol>
+
+  <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M4 6.5h13v6A5.5 5.5 0 0 1 11.5 18h-2A5.5 5.5 0 0 1 4 12.5v-6Z"/><path d="M17.4 8.2h1.1a2.6 2.6 0 0 1 0 5.2h-1.1V11.9h1.1a.9.9 0 0 0 0-1.8h-1.1V8.2Z"/><rect x="3" y="19.6" width="16" height="1.8" rx=".9"/></symbol>
+
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M6.6 5.3h10.1l-2.4-2.4L15.7 1.5l4.8 4.8-4.8 4.8-1.4-1.4 2.4-2.4H6.6A3.1 3.1 0 0 0 3.5 10.4H1.7V7.3A4.9 4.9 0 0 1 6.6 5.3Z"/><path d="M17.4 18.7H7.3l2.4 2.4-1.4 1.4-4.8-4.8 4.8-4.8 1.4 1.4-2.4 2.4h10.1a3.1 3.1 0 0 0 3.1-3.1h1.8v3.1a4.9 4.9 0 0 1-4.9 4.9Z"/></symbol>
+
+  <symbol id="i-chart" viewBox="0 0 24 24"><rect x="3.5" y="12" width="4.2" height="8.5" rx="1.2"/><rect x="9.9" y="7.6" width="4.2" height="12.9" rx="1.2"/><rect x="16.3" y="3.5" width="4.2" height="17" rx="1.2"/></symbol>
+
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 2a7.2 7.2 0 0 0-7.2 7.2c0 5.4 7.2 12.8 7.2 12.8s7.2-7.4 7.2-12.8A7.2 7.2 0 0 0 12 2Zm0 9.9a2.7 2.7 0 1 1 0-5.4 2.7 2.7 0 0 1 0 5.4Z"/></symbol>
+
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M2.6 4.3A1.6 1.6 0 0 1 4.2 2.7h5A2.6 2.6 0 0 1 11.8 5.3V21a3.2 3.2 0 0 0-1.8-1.6l-7.4-3.1V4.3Z"/><path d="M21.4 4.3a1.6 1.6 0 0 0-1.6-1.6h-5a2.6 2.6 0 0 0-2.6 2.6V21a3.2 3.2 0 0 1 1.8-1.6l7.4-3.1V4.3Z"/></symbol>
+
+  <symbol id="i-gift" viewBox="0 0 24 24"><path d="M20.4 7.7h-3.3a3.1 3.1 0 0 0-4.6-3.3L12 5.3l-.5-.9a3.1 3.1 0 0 0-4.6 3.3H3.6a.9.9 0 0 0-.9.9v2.7h8.4V9.1h1.8v2.7h8.4V8.6a.9.9 0 0 0-.9-.9Z"/><path d="M2.7 13.9v5.4A1.8 1.8 0 0 0 4.5 21h6.6v-7.1H2.7Z"/><path d="M12.9 13.9V21h6.6a1.8 1.8 0 0 0 1.8-1.8v-5.4h-8.4Z"/></symbol>
+
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M2.4 3.6h19.2l1.2 4.3a3.4 3.4 0 0 1-6.2 2.1 3.4 3.4 0 0 1-6.4 0 3.4 3.4 0 0 1-6.4 0A3.4 3.4 0 0 1 1.2 7.9l1.2-4.3Z"/><path d="M4.3 12.1v7.6a1.3 1.3 0 0 0 1.3 1.3h12.8a1.3 1.3 0 0 0 1.3-1.3v-7.6a5.2 5.2 0 0 1-3.4.6 5.2 5.2 0 0 1-4.6-2.4 5.2 5.2 0 0 1-4.6 2.4 5.2 5.2 0 0 1-2.8-.6Z"/></symbol>
+
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M12 15.6 5.3 8.9l1.5-1.5 5.2 5.2 5.2-5.2 1.5 1.5-6.7 6.7Z"/></symbol>
+
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M13.2 4.8 11.7 6.3l5.1 5.1H3.4v2.1h13.4l-5.1 5.1 1.5 1.5 7.3-7.3-7.3-7.3Z"/></symbol>
+
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M11.3 2.3 13 6.8l4.5 1.7-4.5 1.7-1.7 4.5-1.7-4.5L5.1 8.5l4.5-1.7 1.7-4.5Z"/><path d="M18.6 13.9l.9 2.2 2.2.9-2.2.9-.9 2.2-.9-2.2-2.2-.9 2.2-.9.9-2.2Z"/></symbol>
+
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M12 18.4a1.9 1.9 0 1 0 0 3.8 1.9 1.9 0 0 0 0-3.8Z"/><path d="M12 13.1a5.4 5.4 0 0 1 3.8 1.6l-1.6 1.6a3.1 3.1 0 0 0-4.4 0L8.2 14.7a5.4 5.4 0 0 1 3.8-1.6Z"/><path d="M12 7.8a10.7 10.7 0 0 1 7.5 3.1l-1.6 1.6a8.4 8.4 0 0 0-11.8 0L4.5 10.9a10.7 10.7 0 0 1 7.5-3.1Z"/></symbol>
+
+  <symbol id="i-battery" viewBox="0 0 24 24"><rect x="1.8" y="7" width="17.4" height="10" rx="2.6"/><rect x="20.6" y="10.2" width="2" height="3.6" rx="1"/></symbol>
+
+  <symbol id="i-signal" viewBox="0 0 24 24"><rect x="2.4" y="15.4" width="3.3" height="6.1" rx="1.1"/><rect x="7.7" y="11.3" width="3.3" height="10.2" rx="1.1"/><rect x="13" y="7.2" width="3.3" height="14.3" rx="1.1"/><rect x="18.3" y="3.1" width="3.3" height="18.4" rx="1.1"/></symbol>
+</defs>
+</svg>
+
+<!-- ============ 1. NAV ============ -->
+<header class="nav" id="top">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="Loyl home">
+      <span class="brand-mark">L</span>
+      <span class="brand-name">Loyl</span>
+    </a>
+
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+
+    <div class="nav-actions">
+      <a class="nav-signin" href="http://localhost:3000/welcome">Sign In</a>
+      <a class="btn btn-primary btn-sm" href="#pricing">Start Free Trial</a>
+      <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="mobile-menu" id="mobileMenu">
+    <div>
+      <nav class="wrap" aria-label="Mobile">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How It Works</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+        <a href="http://localhost:3000/welcome">Sign In</a>
+        <a class="mobile-cta" href="#pricing">Start Free Trial</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ============ 2. HERO ============ -->
+<section class="hero">
+  <div class="hero-blob" data-reveal="zoom"></div>
+
+  <div class="wrap hero-grid">
+    <!-- Copy -->
+    <div class="hero-copy">
+      <span class="pill-tag" data-reveal style="--d:.05s">Digital loyalty for modern businesses</span>
+      <h1 class="h1" data-reveal style="--d:.12s">Turn every visit into a repeat customer</h1>
+      <p class="lede" data-reveal style="--d:.19s">QR-based loyalty program for cafés, salons, gyms, restaurants &amp; more. Set up in 2 minutes, no app download needed.</p>
+
+      <div class="hero-cta" data-reveal style="--d:.26s">
+        <a class="btn btn-primary btn-lg" href="#pricing">Start Free Trial</a>
+        <a class="btn btn-outline-a btn-lg" href="#how-it-works">See How It Works</a>
+      </div>
+
+      <div class="trust" data-reveal style="--d:.33s">
+        <span><i>✓</i> 3-day free trial</span>
+        <span><i>✓</i> No payment required</span>
+        <span><i>✓</i> Cancel anytime</span>
+      </div>
+
+      <p class="hero-signin" data-reveal style="--d:.38s">Already have a business? <a href="http://localhost:3000/welcome">Sign In</a></p>
+    </div>
+
+    <!-- Visual -->
+    <div class="hero-visual" data-reveal="right" style="--d:.2s">
+
+      <div class="float-pill fp-1">
+        <span class="fp-ico"><svg class="ico"><use href="#i-coffee"/></svg></span>
+        <p><span class="t">Artisan Roast Cafe</span><br><span class="s">+42% repeat rate</span></p>
+      </div>
+
+      <div class="float-pill fp-2">
+        <span class="fp-ico">✓</span>
+        <p class="t">Stamp added!</p>
+      </div>
+
+      <div class="float-pill fp-3">
+        <span class="fp-ico"><svg class="ico"><use href="#i-spark"/></svg></span>
+        <p class="t">4.9 / 5.0 Rating</p>
+      </div>
+
+      <div class="device-stack">
+        <!-- Back: Merchant terminal -->
+        <div class="device-back">
+          <div class="phone">
+            <div class="phone-chassis">
+              <div class="phone-screen">
+                <div class="phone-sheen"></div>
+
+                <div class="statusbar term-status">
+                  <span>9:41</span>
+                  <span class="island" style="width:60px;height:15px"><i></i></span>
+                  <span class="status-icons">
+                    <svg class="ico"><use href="#i-signal"/></svg>
+                    <svg class="ico"><use href="#i-battery"/></svg>
+                  </span>
+                </div>
+
+                <div class="term-body">
+                  <span class="term-pill"><span class="dot-live"></span> Terminal Active</span>
+                  <div class="term-qr"><svg class="ico"><use href="#i-scan"/></svg></div>
+                  <div>
+                    <p class="term-label">Today's Scans</p>
+                    <p class="term-count">142</p>
+                    <span class="term-delta">↑ 38% <span>vs yesterday</span></span>
+                  </div>
+                </div>
+
+                <div class="term-foot">
+                  <div class="term-btn"><svg class="ico"><use href="#i-scan"/></svg> Ready for Scan</div>
+                  <div class="home-bar"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Front: Customer loyalty card -->
+        <div class="device-front">
+          <div class="phone">
+            <div class="phone-chassis">
+              <div class="phone-screen">
+                <div class="phone-sheen"></div>
+
+                <div class="statusbar front-status">
+                  <span>9:41</span>
+                  <span class="island front-island"><span class="cam"></span><i></i></span>
+                  <span class="status-icons">
+                    <svg class="ico"><use href="#i-wifi"/></svg>
+                    <svg class="ico"><use href="#i-battery"/></svg>
+                  </span>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:7px;padding-top:8px;position:relative;z-index:10">
+                  <div class="card-hero">
+                    <div class="ch-row">
+                      <span class="ch-brand"><svg class="ico"><use href="#i-coffee"/></svg> Crimson Roast</span>
+                      <span class="ch-tag">VIP Card</span>
+                    </div>
+                    <p class="ch-name">Tanvir Hasan</p>
+                    <div class="ch-stats">
+                      <b>7 / 8 Stamps</b>
+                      <span class="ch-badge">1 to Free Drink</span>
+                    </div>
+                  </div>
+
+                  <div class="mini-card">
+                    <div class="mini-head"><span class="a">Stamp Progress</span><span class="b">87% done</span></div>
+                    <div class="stamp-grid">
+                      <div class="stamp">☕</div><div class="stamp">☕</div><div class="stamp">☕</div><div class="stamp">☕</div>
+                      <div class="stamp">☕</div><div class="stamp">☕</div><div class="stamp">☕</div><div class="stamp is-goal">🎁</div>
+                    </div>
+                  </div>
+
+                  <div class="voucher">
+                    <span class="v-ico">🎟️</span>
+                    <span><span class="t">20% Mystery Voucher</span><br><span class="s">Valid for next 6 hours</span></span>
+                  </div>
+                </div>
+
+                <div class="home-bar" style="position:relative;z-index:30;background:rgba(0,0,0,.25)"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. STAT STRIP ============ -->
+<section class="stat-strip">
+  <div class="wrap stat-row">
+    <span class="pill pill-green" data-reveal style="--d:.02s">✓ Success! +1 Stamp Added</span>
+    <span class="pill pill-maroon" data-reveal style="--d:.09s">↑ Growth 40% More Repeats</span>
+    <span class="pill pill-green" data-reveal style="--d:.16s">৳ Profit Boost Revenue</span>
+  </div>
+</section>
+
+<!-- ============ 4. FEATURES ============ -->
+<section class="features" id="features">
+  <div class="rhombus" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="section-head">
+      <div class="badge-circle" data-reveal="zoom"><svg class="ico"><use href="#i-shield"/></svg></div>
+      <h2 class="h2" data-reveal>Why businesses choose Loyl</h2>
+      <p data-reveal style="--d:.08s">Everything you need to boost repeat customers and build long-term retention.</p>
+    </div>
+
+    <div class="grid-3">
+      <article class="card" data-reveal style="--d:.02s">
+        <div class="card-ico ico-green"><svg class="ico"><use href="#i-qr"/></svg></div>
+        <h3>One QR Code</h3>
+        <p>Place one QR on your counter or table. Customers scan with their camera to stamp cards, view menus, or scratch to win. No app download.</p>
+      </article>
+
+      <article class="card" data-reveal style="--d:.08s">
+        <div class="card-ico ico-maroon"><svg class="ico"><use href="#i-repeat"/></svg></div>
+        <h3>Repeat Visits</h3>
+        <p>Reward your regulars with digital stamp cards that boost repeat visits by up to 40%. Turn one-time shoppers into lifelong brand champions.</p>
+      </article>
+
+      <article class="card" data-reveal style="--d:.14s">
+        <div class="card-ico ico-green"><svg class="ico"><use href="#i-chart"/></svg></div>
+        <h3>Real-time Analytics</h3>
+        <p>Track customer visit frequency, peak shopping hours, top loyalty patrons, and cashier scans in one simple live dashboard.</p>
+      </article>
+
+      <article class="card" data-reveal style="--d:.02s">
+        <div class="card-ico ico-maroon"><svg class="ico"><use href="#i-pin"/></svg></div>
+        <h3>Multi-Branch GPS</h3>
+        <p>Run chain stores with ease. Loyl automatically detects the nearest store branch using smart geolocation so stamps register properly.</p>
+      </article>
+
+      <article class="card" data-reveal style="--d:.08s">
+        <div class="card-ico ico-green"><svg class="ico"><use href="#i-book"/></svg></div>
+        <h3>AI Digital Menu</h3>
+        <p>Upload menu items or price lists instantly. Customers can browse your latest offerings while checking their loyalty points.</p>
+      </article>
+
+      <article class="card" data-reveal style="--d:.14s">
+        <div class="card-ico ico-maroon"><svg class="ico"><use href="#i-gift"/></svg></div>
+        <h3>Scratch Cards</h3>
+        <p>Gamify your checkouts. Reward visits with interactive digital scratch cards offering surprise discounts and free item upgrades.</p>
+      </article>
+
+      <article class="card card-feature" data-reveal style="--d:.06s">
+        <div class="cf-inner">
+          <div class="card-ico ico-green"><svg class="ico"><use href="#i-store"/></svg></div>
+          <div>
+            <div class="cf-title">
+              <h3>FREE QR Stand</h3>
+              <span class="cf-chip">Included Free</span>
+            </div>
+            <p>Every paid plan includes a beautiful complimentary table-stand QR scanner for your counter — designed, printed and delivered to your shop in Bangladesh at zero cost, one time after your first payment succeeds.</p>
+          </div>
+        </div>
+        <a class="btn btn-outline-p btn-sm" href="#pricing">Claim Your Stand</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. HOW IT WORKS ============ -->
+<section class="steps" id="how-it-works">
+  <div class="wrap wrap-md">
+    <div class="section-head">
+      <span class="eyebrow" data-reveal>Simple Onboarding</span>
+      <h2 class="h2" data-reveal style="--d:.06s">Set up in 3 steps</h2>
+      <p data-reveal style="--d:.12s">Go live with your loyalty program today</p>
+    </div>
+
+    <div class="grid-steps">
+      <div class="step" data-reveal style="--d:.02s">
+        <div class="step-n">1</div>
+        <h3>Register Your Business</h3>
+        <p>Sign up, add your business name, and set your reward (e.g., 10 visits = free coffee or discount).</p>
+      </div>
+      <div class="step" data-reveal style="--d:.1s">
+        <div class="step-n">2</div>
+        <h3>Display Your QR Code</h3>
+        <p>Download &amp; print your branded QR poster, or use the free acrylic QR countertop stand we ship to you.</p>
+      </div>
+      <div class="step" data-reveal style="--d:.18s">
+        <div class="step-n">3</div>
+        <h3>Watch Customers Return</h3>
+        <p>Track scans, see repeat rates climb, and manage claimed rewards — all in real-time from your dashboard.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6. RIBBON / TRUST ============ -->
+<section class="ribbon">
+  <div class="wrap wrap-md">
+    <div class="section-head" style="margin-bottom:44px">
+      <span class="eyebrow" data-reveal>Proven Performance</span>
+      <h2 class="h2" data-reveal style="--d:.06s">Trusted by businesses across Bangladesh</h2>
+      <p data-reveal style="--d:.12s">From premier Dhaka cafes to bustling Chittagong retail salons.</p>
+    </div>
+
+    <div class="metrics">
+      <div class="metric" data-reveal style="--d:.02s"><b data-count="500" data-suffix="+">0</b><span>Active Businesses</span></div>
+      <div class="metric" data-reveal style="--d:.1s"><b data-count="50" data-suffix="K+">0</b><span>Stamps Collected</span></div>
+      <div class="metric" data-reveal style="--d:.18s"><b data-count="40" data-suffix="%">0</b><span>Avg. Repeat Rate Boost</span></div>
+    </div>
+
+    <div class="showcase">
+      <!-- Scan phone -->
+      <div class="show-phone" data-reveal="left" style="--d:.05s">
+        <div class="phone">
+          <div class="phone-chassis">
+            <div class="phone-screen">
+              <div class="phone-sheen"></div>
+
+              <div class="statusbar">
+                <span>9:41</span>
+                <span class="island" style="width:52px;height:13px"><i></i></span>
+                <span class="status-icons"><svg class="ico"><use href="#i-battery"/></svg></span>
+              </div>
+
+              <div class="scan-body">
+                <div class="scan-ico"><svg class="ico"><use href="#i-coffee"/></svg></div>
+                <h4>Scan. Earn. Return.</h4>
+                <p>Point camera at the counter QR stand to validate visit.</p>
+                <span class="scan-chip"><svg class="ico"><use href="#i-qr"/></svg> Instant Tap Detection</span>
+              </div>
+
+              <div class="phone-cta">
+                <div>View My Rewards <svg class="ico"><use href="#i-arrow"/></svg></div>
+                <div class="home-bar"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Points phone -->
+      <div class="show-phone" data-reveal="right" style="--d:.14s">
+        <div class="phone">
+          <div class="phone-chassis">
+            <div class="phone-screen">
+              <div class="phone-sheen"></div>
+
+              <div class="statusbar">
+                <span>9:41</span>
+                <span class="island" style="width:52px;height:13px"><i style="background:#34d399"></i></span>
+                <span class="status-icons"><svg class="ico"><use href="#i-wifi"/></svg></span>
+              </div>
+
+              <div class="pts-body">
+                <div class="mini-card">
+                  <div class="pts-head"><span class="a">Points Balance</span><span class="b">Gold Tier</span></div>
+                  <div class="pts-value"><b>450</b><span>pts</span></div>
+                </div>
+
+                <div class="mini-card" style="display:grid;gap:7px">
+                  <div class="rew-row"><b>Next Reward</b><span class="rew-chip">Free Pastry</span></div>
+                  <div class="bar"><i></i></div>
+                  <p class="rew-note">50 points needed</p>
+                </div>
+              </div>
+
+              <div class="phone-cta">
+                <div><svg class="ico"><use href="#i-qr"/></svg> Scan Merchant Code</div>
+                <div class="home-bar"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="powered" data-reveal><i></i> Powered by Loyl</div>
+  </div>
+</section>
+
+<!-- ============ 7. PRICING ============ -->
+<section class="pricing" id="pricing">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow" data-reveal>Transparent Investment</span>
+      <h2 class="h2" data-reveal style="--d:.06s">Simple, transparent pricing</h2>
+      <p data-reveal style="--d:.12s">Start free. Scale as you grow.</p>
+    </div>
+
+    <div class="grid-4">
+      <!-- Free -->
+      <div class="tier" data-reveal style="--d:.02s">
+        <div>
+          <span class="tier-kicker">Free Forever</span>
+          <h3>Free</h3>
+          <p class="tier-for">Try Loyl in a single shop</p>
+          <div class="tier-price"><b>৳0</b><span>/ mo</span></div>
+          <ul class="tier-list">
+            <li>1 Location</li>
+            <li>Scratch Card Offers Only</li>
+            <li>Printable Digital QR Kit</li>
+            <li>Basic Analytics Dashboard</li>
+            <li>Digital Menu Not Included</li>
+          </ul>
+        </div>
+        <a class="btn btn-outline-p btn-block btn-sm" href="http://localhost:3000/welcome">Get Started</a>
+      </div>
+
+      <!-- Starter -->
+      <div class="tier" data-reveal style="--d:.1s">
+        <div>
+          <span class="tier-kicker">1 Branch</span>
+          <h3>Starter</h3>
+          <p class="tier-for">Single shop, all features</p>
+          <div class="tier-price"><b>৳500</b><span>/ mo</span></div>
+          <ul class="tier-list">
+            <li>1 Location</li>
+            <li>All Features incl. Digital Menu</li>
+            <li>Unlimited Customer Stamp Scans</li>
+            <li>SMS &amp; WhatsApp Reminders</li>
+            <li>Printable Digital QR Kit</li>
+            <li>FREE Table-Stand QR Scanner</li>
+          </ul>
+        </div>
+        <a class="btn btn-outline-p btn-block btn-sm" href="http://localhost:3000/welcome">Start Free Trial</a>
+      </div>
+
+      <!-- Growth -->
+      <div class="tier is-featured" data-reveal style="--d:.18s">
+        <span class="tier-flag">Most Popular</span>
+        <div>
+          <span class="tier-kicker">3 Branches</span>
+          <h3>Growth</h3>
+          <p class="tier-for">For busy cafes &amp; salons</p>
+          <div class="tier-price"><b>৳1,000</b><span>/ mo</span></div>
+          <ul class="tier-list">
+            <li>Up to 3 Locations</li>
+            <li>Everything in Starter</li>
+            <li>FREE Table-Stand QR Scanner</li>
+            <li>GPS Auto-Store Detection</li>
+            <li>Dedicated Priority Support</li>
+          </ul>
+        </div>
+        <a class="btn btn-primary btn-block btn-sm" href="http://localhost:3000/welcome">Start Free Trial</a>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="tier" data-reveal style="--d:.26s">
+        <div>
+          <span class="tier-kicker">Franchise</span>
+          <h3>Enterprise</h3>
+          <p class="tier-for">Retail chains &amp; franchises</p>
+          <div class="tier-custom">Custom pricing</div>
+          <ul class="tier-list">
+            <li>Unlimited Locations</li>
+            <li>Complimentary Table-Stand QR Scanner</li>
+            <li>Custom Domain / White-label</li>
+            <li>POS &amp; ERP Integration Support</li>
+            <li>Dedicated Account Manager</li>
+          </ul>
+        </div>
+        <a class="btn btn-outline-a btn-block btn-sm" href="contact.html">Contact Us</a>
+      </div>
+    </div>
+
+    <p class="pricing-note" data-reveal>All paid plans come with a 3-day free trial. No payment required to start.</p>
+  </div>
+</section>
+
+<!-- ============ 8. FAQ ============ -->
+<section class="faq" id="faq">
+  <div class="wrap wrap-xs">
+    <div class="section-head">
+      <span class="eyebrow" data-reveal>Got Questions?</span>
+      <h2 class="h2" data-reveal style="--d:.06s">Frequently Asked Questions</h2>
+      <p data-reveal style="--d:.12s">Everything you need to know about Loyl</p>
+    </div>
+
+    <div class="faq-list" id="faqList">
+      <div class="faq-item" data-reveal style="--d:.02s">
+        <button class="faq-q" aria-expanded="false">What is Loyl?<svg class="ico"><use href="#i-chevron"/></svg></button>
+        <div class="faq-a"><div><p>Loyl is a modern, QR-based digital loyalty card platform designed for storefronts, cafes, salons, and retail businesses. It replaces printed punch cards with effortless digital stamps accessible on smartphones without downloading any app.</p></div></div>
+      </div>
+
+      <div class="faq-item" data-reveal style="--d:.06s">
+        <button class="faq-q" aria-expanded="false">How does it work for my business?<svg class="ico"><use href="#i-chevron"/></svg></button>
+        <div class="faq-a"><div><p>You place your unique Loyl QR code at your checkout counter or tables. When customers scan it using their phone camera, their loyalty card opens in their mobile browser. Cashiers enter a quick 4-digit PIN or scan a receipt code to validate stamps.</p></div></div>
+      </div>
+
+      <div class="faq-item" data-reveal style="--d:.1s">
+        <button class="faq-q" aria-expanded="false">How much does Loyl cost?<svg class="ico"><use href="#i-chevron"/></svg></button>
+        <div class="faq-a"><div><p>Loyl is free for a single branch with scratch-card offers (no digital menu). Paid plans are ৳500/month for one branch with all features, and ৳1,000/month for up to 3 branches. Larger chains get custom pricing based on branch count — just contact us. Every paid subscription starts with a 3-day free trial, and there are zero hidden setup fees.</p></div></div>
+      </div>
+
+      <div class="faq-item" data-reveal style="--d:.14s">
+        <button class="faq-q" aria-expanded="false">Can I use one QR code for multiple branches?<svg class="ico"><use href="#i-chevron"/></svg></button>
+        <div class="faq-a"><div><p>Yes! With multi-branch plans, smart GPS auto-detects the customer's current branch location. You can view consolidated reports or branch-by-branch statistics.</p></div></div>
+      </div>
+
+      <div class="faq-item" data-reveal style="--d:.18s">
+        <button class="faq-q" aria-expanded="false">Do I get a free QR code stand?<svg class="ico"><use href="#i-chevron"/></svg></button>
+        <div class="faq-a"><div><p>Yes! Every paid plan (Starter, Growth and Enterprise) includes a beautiful complimentary table-stand QR scanner for your counter. We design, print and ship it to your shop in Bangladesh at zero cost — one time, right after your first payment succeeds.</p></div></div>
+      </div>
+
+      <div class="faq-item" data-reveal style="--d:.22s">
+        <button class="faq-q" aria-expanded="false">Is Loyl free for customers?<svg class="ico"><use href="#i-chevron"/></svg></button>
+        <div class="faq-a"><div><p>Absolutely 100% free for your customers. They never pay anything and never need to download an application from an app store.</p></div></div>
+      </div>
+
+      <div class="faq-item" data-reveal style="--d:.26s">
+        <button class="faq-q" aria-expanded="false">What types of businesses can use Loyl?<svg class="ico"><use href="#i-chevron"/></svg></button>
+        <div class="faq-a"><div><p>Cafés, specialty coffee roasters, restaurants, juice bars, beauty salons, barbershops, fitness centers, car washes, and retail apparel stores all thrive using Loyl.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9. FINAL CTA ============ -->
+<section class="cta">
+  <div class="wrap wrap-xxs">
+    <h2 data-reveal>Ready to grow your business?</h2>
+    <p class="sub" data-reveal style="--d:.08s">Join 500+ businesses using Loyl to increase repeat customers.</p>
+    <div data-reveal style="--d:.16s">
+      <a class="btn btn-white btn-lg" href="#pricing">Start Your Free Trial</a>
+    </div>
+    <p class="cta-signin" data-reveal style="--d:.22s">Already have a business? <a href="http://localhost:3000/welcome">Sign In</a></p>
+  </div>
+
+  <div class="cta-phone" data-reveal="zoom" style="--d:.28s">
+    <div class="phone">
+      <div class="phone-chassis">
+        <div class="phone-screen">
+          <div class="phone-sheen"></div>
+
+          <div class="statusbar">
+            <span>9:41</span>
+            <span class="island" style="width:52px;height:13px"><i style="background:#34d399"></i></span>
+            <span class="status-icons"><svg class="ico"><use href="#i-battery"/></svg></span>
+          </div>
+
+          <div class="reward-head">
+            <span><svg class="ico"><use href="#i-spark"/></svg> Unlocked Reward</span>
+            <p>Complimentary Coffee &amp; Treat</p>
+          </div>
+
+          <div class="done-card">
+            <div class="done-cups"><span>☕</span><span>☕</span><span>☕</span></div>
+            <p class="a">10 / 10 Stamps Completed!</p>
+            <p class="b">Ready for instant redemption</p>
+          </div>
+
+          <div class="redeem-btn"><svg class="ico"><use href="#i-gift"/></svg> Redeem at Cashier</div>
+          <div class="home-bar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ 10. FOOTER ============ -->
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <span class="brand-mark">L</span>
+      <b>Loyl</b>
+      <span>Digital loyalty platform for modern businesses in Bangladesh.</span>
+    </div>
+
+    <nav class="footer-links" aria-label="Footer">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="refund.html">Refunds</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+
+    <div class="footer-meta">
+      <span>hello@loyl.app</span>
+      <p>© 2026 Loyl. Made in Bangladesh 🇧🇩</p>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contact — Loyl</title>
+<meta name="description" content="Contact Loyl: email and WhatsApp support for sales, billing and help. Replies within one working day.">
+<meta name="theme-color" content="#195035">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%23195035'/%3E%3Ctext%20x='32'%20y='44'%20font-family='Inter,Arial,sans-serif'%20font-size='36'%20font-weight='800'%20fill='%23fff'%20text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .legal-hero { background: #fff; border-bottom: 1px solid var(--line); padding: 56px 0 36px; }
+  .legal-hero .eyebrow { margin-bottom: 10px; }
+  .legal-hero h1 { font-size: clamp(30px, 4.5vw, 42px); line-height: 1.15; letter-spacing: -0.025em; font-weight: 800; color: var(--primary); margin-bottom: 10px; }
+  .legal-hero p { color: rgba(26,26,26,.68); font-size: 15px; max-width: 62ch; }
+  .legal-body { background: var(--sand); padding: 40px 0 72px; }
+  .legal-back { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 18px; }
+  .legal-back:hover { color: var(--accent); }
+  .contact-grid { display: grid; grid-template-columns: minmax(0,1fr); gap: 18px; }
+  @media (min-width: 760px) { .contact-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  .contact-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 28px; box-shadow: var(--sh-card); }
+  .contact-card .ico-wrap { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; margin-bottom: 14px; font-size: 20px; font-weight: 800; }
+  .contact-card h2 { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 6px; }
+  .contact-card p { font-size: 14px; line-height: 1.7; color: rgba(26,26,26,.68); margin-bottom: 16px; }
+  .contact-card .big-link { font-size: 16px; font-weight: 800; color: var(--primary); word-break: break-all; }
+  .contact-card .big-link:hover { color: var(--accent); }
+  .hours { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 24px 28px; margin-top: 18px; box-shadow: var(--sh-card); font-size: 14px; line-height: 1.75; color: rgba(26,26,26,.75); }
+  .hours strong { color: var(--primary); }
+</style>
+</head>
+<body>
+
+<header class="nav" id="top">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html" aria-label="Loyl home">
+      <span class="brand-mark">L</span>
+      <span class="brand-name">Loyl</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="index.html#features">Features</a>
+      <a href="index.html#how-it-works">How It Works</a>
+      <a href="index.html#pricing">Pricing</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="nav-signin" href="http://localhost:3000/welcome">Sign In</a>
+      <a class="btn btn-primary btn-sm" href="index.html#pricing">Start Free Trial</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="legal-hero">
+    <div class="wrap wrap-xs">
+      <a class="legal-back" href="index.html">← Back to home</a>
+      <span class="eyebrow">Support</span>
+      <h1>Talk to a human</h1>
+      <p>Sales, billing, QR stands, or help with your loyalty program — message us on WhatsApp for the fastest reply, or email anytime.</p>
+    </div>
+  </section>
+
+  <section class="legal-body">
+    <div class="wrap wrap-xs">
+      <div class="contact-grid">
+        <div class="contact-card">
+          <div class="ico-wrap" style="background:var(--primary-tint);color:var(--primary)">✉</div>
+          <h2>Email us</h2>
+          <p>For billing receipts, refund requests, and anything that needs an attachment. Include your business name + registered phone number.</p>
+          <a class="big-link" href="mailto:hello@loyl.app">hello@loyl.app</a>
+          <p style="margin-top:12px;margin-bottom:0">Replies within one working day.</p>
+        </div>
+        <div class="contact-card">
+          <div class="ico-wrap" style="background:var(--accent-tint);color:var(--accent)">✆</div>
+          <h2>WhatsApp</h2>
+          <p>Fastest for setup help, QR stand delivery, and urgent issues during shop hours.</p>
+          <a class="big-link" href="https://wa.me/8801612628493" target="_blank" rel="noopener">+880 1612-628493</a>
+          <p style="margin-top:12px;margin-bottom:0">Tap to chat — we usually reply within shop hours.</p>
+        </div>
+      </div>
+
+      <div class="hours">
+        <strong>Hours:</strong> Saturday – Thursday, 10:00 – 20:00 (Dhaka time). Messages outside hours are answered the next working day.<br>
+        <strong>What to include:</strong> business name, registered phone number, and a screenshot for billing or technical issues.<br>
+        <strong>Policies:</strong> <a href="privacy.html" style="color:var(--primary);font-weight:700">Privacy Policy</a> · <a href="refund.html" style="color:var(--primary);font-weight:700">Refund Policy</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <span class="brand-mark">L</span>
+      <b>Loyl</b>
+      <span>Digital loyalty platform for modern businesses in Bangladesh.</span>
+    </div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="index.html#features">Features</a>
+      <a href="index.html#pricing">Pricing</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="refund.html">Refunds</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <div class="footer-meta">
+      <span>hello@loyl.app</span>
+      <p>© 2026 Loyl. Made in Bangladesh 🇧🇩</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!--
+    Loyl app icon — Sovereign Green (brain.md §3).
+    A stamp card tile: rounded porcelain panel, one filled stamp, three
+    pending. Deliberately an SVG (Phase 8 decision): scales to every icon
+    slot (16px favicon → 512px manifest source) from one file, no raster set.
+  -->
+  <rect width="512" height="512" rx="112" fill="#0D472A"/>
+  <rect x="96" y="96" width="320" height="320" rx="72" fill="#F1FCF4"/>
+  <rect x="144" y="144" width="96" height="96" rx="20" fill="#0D472A"/>
+  <rect x="272" y="144" width="96" height="96" rx="20" fill="none" stroke="#0D472A" stroke-width="12" stroke-dasharray="26 18"/>
+  <rect x="144" y="272" width="96" height="96" rx="20" fill="none" stroke="#0D472A" stroke-width="12" stroke-dasharray="26 18"/>
+  <rect x="272" y="272" width="96" height="96" rx="20" fill="none" stroke="#0D472A" stroke-width="12" stroke-dasharray="26 18"/>
+</svg>

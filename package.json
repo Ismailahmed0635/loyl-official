@@ -1,0 +1,54 @@
+{
+  "name": "loyl",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev frontend",
+    "build": "next build frontend",
+    "start": "next start frontend",
+    "lint": "next lint frontend",
+    "test": "vitest run",
+    "typecheck": "tsc -p frontend/tsconfig.json",
+    "db:push": "node node_modules/prisma/build/index.js db push --schema backend/prisma/schema.prisma",
+    "db:generate": "node node_modules/prisma/build/index.js generate --schema backend/prisma/schema.prisma",
+    "db:studio": "node node_modules/prisma/build/index.js studio --schema backend/prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.19.0",
+    "autoprefixer": "^10.6.1",
+    "bcryptjs": "^2.4.3",
+    "canvas-confetti": "^1.9.4",
+    "clsx": "^2.1.1",
+    "firebase": "^12.19.0",
+    "firebase-admin": "^14.5.0",
+    "framer-motion": "^11.5.4",
+    "gsap": "^3.15.0",
+    "jose": "^5.8.0",
+    "lucide-react": "^0.439.0",
+    "next": "^14.2.35",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^20.16.5",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "postcss": "^8.4.45",
+    "prisma": "^5.19.0",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.6.2",
+    "vitest": "^2.0.5"
+  },
+  "allowScripts": {
+    "@prisma/client@5.22.0": true,
+    "@prisma/engines@5.22.0": true,
+    "prisma@5.22.0": true,
+    "esbuild@0.21.5": true
+  }
+}

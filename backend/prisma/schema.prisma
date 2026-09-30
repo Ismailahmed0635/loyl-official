@@ -1,0 +1,490 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+}
+
+enum RewardType {
+  DISCOUNT
+  FREE_ITEM
+  CUSTOM
+}
+
+/// Which creation flow produced the offer — stamp card vs scratch card (Phase 3.5).
+enum OfferType {
+  STAMP
+  SCRATCH
+  DICE
+}
+
+/// Scratch offer reward mode: one fixed reward, or a pool drawn at random.
+enum ScratchMode {
+  FIXED
+  RANDOM_POOL
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Phase 9: a customer's check-in awaiting merchant confirmation.
+/// The merchant may only APPROVE (or leave it pending) — there is deliberately
+/// no REJECTED state, so a merchant can never deny a customer a stamp.
+enum ScanRequestStatus {
+  PENDING
+  APPROVED
+}
+
+enum PaymentMethod {
+  BKASH
+  NAGAD
+}
+
+/// Phase 7: access tier granted by an admin approval.
+/// FREE = manual free-tier approval (no expiry); MONTHLY = 30d;
+/// YEARLY/PREMIUM = 365d (premium entitlements gate later phases).
+enum SubscriptionTier {
+  FREE
+  MONTHLY
+  YEARLY
+  PREMIUM
+}
+
+model Merchant {
+  id                    String             @id @default(cuid())
+  cognitoSub            String?            @unique
+  firebaseUid           String?            @unique
+  /// Email/password sign-in identity (Firebase). Nullable so pre-email rows
+  /// keep working; required from business-setup onward.
+  email                 String?            @unique
+  businessName          String
+  category              String
+  /// Collected contact data — never verified, never an identity.
+  phoneNumber           String             @unique
+  logoUrl               String?
+  /// Phase 4 (LOYLS §6): social links shown on the merchant profile.
+  websiteUrl            String?
+  facebookUrl           String?
+  instagramUrl          String?
+  subscriptionStatus    SubscriptionStatus @default(PENDING)
+  /// Phase 7: which tier the last approval granted (default FREE until paid).
+  subscriptionTier      SubscriptionTier   @default(FREE)
+  subscriptionExpiresAt DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  deletedAt             DateTime?
+
+  branches        Branch[]
+  offers          Offer[]
+  customerStamps  CustomerStamp[]
+  scratchResults  ScratchResult[]
+  diceResults     DiceRollResult[]
+  paymentRequests PaymentRequest[]
+  activityEvents  ActivityEvent[]
+  scanRequests    ScanRequest[]
+  devices         MerchantDevice[]
+  /// Digital Menu Card: at most one menu row per merchant (Phase 12).
+  digitalMenu     DigitalMenu?
+
+  @@index([phoneNumber])
+  @@index([email])
+}
+
+model Branch {
+  id           String    @id @default(cuid())
+  merchantId   String
+  branchName   String
+  address      String?
+  latitude     Decimal?  @db.Decimal(10, 8)
+  longitude    Decimal?  @db.Decimal(11, 8)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+}
+
+model Offer {
+  id                 String     @id @default(cuid())
+  merchantId         String
+  title              String
+  /// STAMP offers use rewardType/requiredStamps; SCRATCH offers use scratchMode + ScratchItem rows.
+  offerType          OfferType  @default(STAMP)
+  rewardType         RewardType @default(DISCOUNT)
+  /// Stamp offers only (null for scratch offers).
+  requiredStamps     Int?
+  /// Scratch offers only (null for stamp offers).
+  scratchMode        ScratchMode?
+  /// Random-pool rotation cursor: index into scratchOrder for the next draw.
+  scratchCursor      Int        @default(0)
+  /// Random-pool shuffled order of ScratchItem ids for the current cycle.
+  scratchOrder       String[]   @default([])
+  /// SCRATCH offers only: hours a customer waits after a reveal before the
+  /// next one. Mirrors the other scratch-only columns — null semantics are
+  /// unused because the default covers stamp offers too.
+  scratchCooldownHours Int     @default(24)
+  /// DICE offers only (1..5, null on stamp/scratch offers): how many dice the
+  /// customer rolls on the offer page. The roll total IS the discount percent.
+  diceCount          Int?
+  durationDays       Int
+  posterTemplateUrl  String?
+  finalPosterUrl     String?
+  isActive           Boolean    @default(true)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  deletedAt          DateTime?
+
+  merchant      Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  scratchItems  ScratchItem[]
+  scratchResults ScratchResult[]
+  diceResults   DiceRollResult[]
+  scanRequests  ScanRequest[]
+
+  @@index([merchantId])
+}
+
+/// One selectable reward row of a SCRATCH offer (label only — merchant-authored).
+model ScratchItem {
+  id        String   @id @default(cuid())
+  offerId   String
+  label     String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@index([offerId])
+}
+
+/// One customer scratch reveal — snapshot of the drawn reward (24h per-offer cooldown).
+model ScratchResult {
+  id           String      @id @default(cuid())
+  offerId      String
+  merchantId   String
+  customerPhone String
+  rewardLabel  String
+  mode         ScratchMode
+  scratchedAt  DateTime    @default(now())
+
+  offer    Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([offerId, customerPhone])
+  @@index([merchantId])
+}
+
+/// One customer dice roll on a DICE offer — the roll itself, the discount it
+/// earned, and the ONE-TIME entitlement that stops a re-roll.
+///
+/// `@@unique([offerId, customerPhone])` is the enforcement mechanism, not the
+/// application: the row either inserts or it does not, so two concurrent rolls
+/// from the same phone can never both win (the loser gets 409 ALREADY_ROLLED).
+/// There is deliberately no cooldown column — the limit is once per customer
+/// per offer, for the life of the offer.
+model DiceRollResult {
+  id            String   @id @default(cuid())
+  offerId       String
+  merchantId    String
+  customerPhone String
+  /// Dice configuration snapshotted at roll time (survives an offer edit).
+  diceCount     Int
+  /// Face value of each die, 1..6, in display order.
+  diceValues    Int[]
+  /// Sum of `diceValues`.
+  total         Int
+  /// The discount the customer earned: the roll total, as a whole percent.
+  discountPercent Int
+  rolledAt      DateTime @default(now())
+
+  offer    Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([offerId, customerPhone])
+  @@index([merchantId])
+}
+
+model CustomerStamp {
+  id              String    @id @default(cuid())
+  merchantId      String
+  customerPhone   String
+  /// Phase 11: the name the customer verified at web sign-in. Null for cards
+  /// created before name capture existed, or when a name was never supplied.
+  customerName    String?
+  stampsCollected Int       @default(0)
+  totalRedeemed   Int       @default(0)
+  lastScannedAt   DateTime?
+  lastReviewAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, customerPhone])
+  @@index([merchantId])
+  @@index([customerPhone])
+}
+
+model PaymentRequest {
+  id            String           @id @default(cuid())
+  merchantId    String
+  /// FREE requests carry no payment details — everything below is optional for them.
+  paymentMethod PaymentMethod    @default(BKASH)
+  senderNumber  String?
+  trxId         String?          @unique
+  amount        Decimal          @db.Decimal(10, 2) @default(0)
+  /// Tier the merchant asked for at checkout (admin can override on approve).
+  requestedTier SubscriptionTier @default(MONTHLY)
+  /// Screenshot filename under storage/payment-screenshots — cleared when reviewed.
+  screenshotPath String?
+  status        PaymentStatus    @default(PENDING)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  deletedAt     DateTime?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@index([status])
+}
+
+/// Phase 4: one timestamped customer action for merchant analytics time series.
+/// Scratch reveals are NOT stored here — `ScratchResult` already is the event
+/// log for scratch offers; analytics unions the two sources.
+/// `offerId` is a plain string (no relation): history survives offer deletion.
+enum ActivityType {
+  SCAN
+  REVIEW_BONUS
+  REDEEM
+}
+
+model ActivityEvent {
+  id            String       @id @default(cuid())
+  merchantId    String
+  offerId       String?
+  customerPhone String
+  type          ActivityType
+  createdAt     DateTime     @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, createdAt])
+  @@index([merchantId, offerId])
+}
+
+/// Phase 10: whether a registered merchant device may still act.
+/// A REVOKED device keeps its row for the approval audit trail but can no
+/// longer sign an approval.
+enum DeviceStatus {
+  ACTIVE
+  REVOKED
+}
+
+/// Phase 10: one native-app installation belonging to a merchant.
+///
+/// Approval of a customer check-in must be signed by an ACTIVE device's private
+/// key (Ed25519). The server stores only the public key, so a leaked database
+/// cannot be used to forge approvals. The merchant web dashboard holds no device
+/// key and therefore can never approve a scan — see `backend/devices.ts`.
+model MerchantDevice {
+  id         String       @id @default(cuid())
+  merchantId String
+  /// Human label for the app's device list ("Counter tablet", "Samsung A15").
+  deviceName String
+  /// Ed25519 public key as JWK JSON. The private key never leaves the device.
+  publicKey  String
+  /// Optional app-reported install id, unique per device when supplied.
+  installId  String?
+  status     DeviceStatus @default(ACTIVE)
+
+  registeredAt DateTime  @default(now())
+  lastSeenAt   DateTime?
+  revokedAt    DateTime?
+  deletedAt    DateTime?
+
+  merchant     Merchant      @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  scanRequests ScanRequest[]
+
+  @@unique([merchantId, installId])
+  @@index([merchantId, status])
+}
+
+/// Phase 9: one customer check-in awaiting merchant confirmation.
+/// The stamp is NOT granted when the customer scans — only when the merchant
+/// approves this request. Holding = leaving it PENDING (there is no reject).
+model ScanRequest {
+  id            String            @id @default(cuid())
+  merchantId    String
+  offerId       String
+  customerPhone String
+  status        ScanRequestStatus @default(PENDING)
+  /// Phase 11: snapshot of the customer's verified name at scan time, so the
+  /// merchant sees who is checking in before approving.
+  customerName  String?
+  /// GPS snapshot at scan time (null when the shop has no branch coordinates).
+  distanceMeters Int?
+  branchName    String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  /// Set when the merchant accepted the request.
+  decidedAt     DateTime?
+  /// Phase 10: the device whose signature approved this check-in.
+  /// SetNull on device deletion — the approval stays attributable to a null
+  /// device rather than losing the row (the audit is append-only).
+  approvedByDeviceId String?
+  deletedAt     DateTime?
+  /// Race guard: `${merchantId}:${customerPhone}` while PENDING (unique), NULL
+  /// once approved. A concurrent double-scan violates the constraint instead
+  /// of stacking a second check-in; Postgres treats NULLs as distinct so
+  /// history rows never collide.
+
+  merchant         Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  offer            Offer           @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  approvedByDevice MerchantDevice? @relation(fields: [approvedByDeviceId], references: [id], onDelete: SetNull)
+
+  pendingKey String? @unique
+
+  @@index([merchantId, status])
+  @@index([merchantId, customerPhone])
+  @@index([offerId])
+  @@index([approvedByDeviceId])
+}
+
+// --- Phase 12: Digital Menu Card --------------------------------------------
+
+/// A merchant's published (or draft) digital menu — one row per merchant.
+///
+/// `slug` is the ONLY public identifier: the customer-facing URL is
+/// `/menu/{slug}` and the merchant CUID never appears in a QR code. It is
+/// derived from the business name at creation and is unique across merchants.
+///
+/// `publishedAt == null` means the menu has never gone live; the public page
+/// 404s until the merchant presses Publish. Once published, edits take effect
+/// immediately (there is no separate review step for content the merchant
+/// authored themselves).
+model DigitalMenu {
+  id         String    @id @default(cuid())
+  merchantId String    @unique
+  /// URL-safe public handle, e.g. `cafe-corner`. See `slugify` in backend/menu.ts.
+  slug       String    @unique
+  /// Page heading shown to customers (defaults to the business name).
+  title      String
+  /// `#RRGGBB` background for the public page; validated by `normalizeHexColor`.
+  backgroundHex String  @default("#FFFFFF")
+  /// Menu photo filename inside MENU_PHOTO_DIR — a bare name, never a full path.
+  photoPath  String?
+  /// Set the first time the merchant publishes; drives the public 404 gate.
+  publishedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  merchant   Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  categories MenuCategory[]
+
+  @@index([merchantId])
+}
+
+/// A section of the menu ("Starters", "Coffee") — ordered within its menu.
+model MenuCategory {
+  id        String   @id @default(cuid())
+  menuId    String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  menu  DigitalMenu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  items MenuItem[]
+
+  @@index([menuId])
+}
+
+/// One row of a menu category. Prices stay free text because OCR and Bengali
+/// menus routinely produce `৳250`, `250`, `2/=` or `Market price` — there is
+/// nothing to compute on, only text to display.
+model MenuItem {
+  id         String   @id @default(cuid())
+  categoryId String
+  name       String
+  description String?
+  /// Display price exactly as the merchant typed it.
+  price      String?
+  sortOrder  Int      @default(0)
+  /// Lets a merchant hide a sold-out item without deleting it.
+  isAvailable Boolean @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category   MenuCategory      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  /// Add-ons & variants for this item (Phase 12.5) — "Size", "Extra toppings".
+  modifierGroups MenuModifierGroup[]
+
+  @@index([categoryId])
+}
+
+/// A named set of per-item options (Phase 12.5): "Size" (variants) or "Extra
+/// toppings" (add-ons). Lives on ONE MenuItem — menus re-print per item, so
+/// there is deliberately no shared/library layer to reason about.
+model MenuModifierGroup {
+  id       String @id @default(cuid())
+  itemId   String
+  name     String
+  /// Server enum: SINGLE = pick one (Size), MULTI = pick many (add-ons).
+  /// (Policy doc: replace-in-transaction on save; groups are never patched
+  /// in place, so a race cannot merge two merchants' edits.)
+  selectionType MenuModifierSelection @default(SINGLE)
+  /// SINGLE groups may force a choice; MULTI groups are always optional.
+  isRequired Boolean @default(false)
+  sortOrder Int    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  item    MenuItem            @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  options MenuModifierOption[]
+
+  @@index([itemId])
+}
+
+/// One choice inside a modifier group: "Small +৳0", "Large +৳60". Price is
+/// display text exactly like MenuItem.price — Bengali menus print deltas as
+/// `+60`, `+60/-`, `Free`, so nothing here is computed, only shown.
+model MenuModifierOption {
+  id      String @id @default(cuid())
+  groupId String
+  name    String
+  /// Display price delta exactly as typed ("+৳60", "Free"). Null = no extra.
+  price   String?
+  /// SINGLE groups may mark a default choice ("Regular"). Not shown on MULTI.
+  isDefault Boolean @default(false)
+  sortOrder Int    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group MenuModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+}
+
+/// SINGLE = radio (pick exactly one variant, e.g. Size); MULTI = checkbox
+/// (pick any, e.g. extra toppings). Product policy: isRequired is only
+/// meaningful for SINGLE — the save schema enforces that pairing.
+enum MenuModifierSelection {
+  SINGLE
+  MULTI
+}
+

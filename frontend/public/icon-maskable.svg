@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!--
+    Maskable variant — the mark is drawn well inside the 80% safe zone so a
+    circular or squircle mask can crop the tile edge without touching the
+    stamp card graphic.
+  -->
+  <rect width="512" height="512" fill="#0D472A"/>
+  <rect x="136" y="136" width="240" height="240" rx="52" fill="#F1FCF4"/>
+  <rect x="172" y="172" width="70" height="70" rx="14" fill="#0D472A"/>
+  <rect x="270" y="172" width="70" height="70" rx="14" fill="none" stroke="#0D472A" stroke-width="10" stroke-dasharray="19 15"/>
+  <rect x="172" y="270" width="70" height="70" rx="14" fill="none" stroke="#0D472A" stroke-width="10" stroke-dasharray="19 15"/>
+  <rect x="270" y="270" width="70" height="70" rx="14" fill="none" stroke="#0D472A" stroke-width="10" stroke-dasharray="19 15"/>
+</svg>

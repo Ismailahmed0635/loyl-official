@@ -30,10 +30,10 @@ the next session reads this file and continues from the first unchecked box.
 
 ## Phase 3 — Verify
 - [x] typecheck clean
-- [x] vitest all pass (count: 337)
+- [x] vitest all pass (count: 339)
 - [x] build exit 0 (pages: 61)
 - [x] smokes all pass (543/543)
-- [ ] Playwright walkthrough 0 console errors
+- [x] Playwright walkthrough 0 console errors (50/50 mobile+desktop, FontLoader fix)
 - [x] brain.md changelog appended
 
 ## Findings (append-only; format: [SEV] area — file:line — fact)

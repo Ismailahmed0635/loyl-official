@@ -14,6 +14,18 @@ backend/prisma/*.db
 # local DB dumps (contain real data — never commit)
 backups/
 
+# runtime uploads (screenshots, menu photos — user data, never commit)
+storage/
+
+# local run artifacts
+build_out*.txt
+dev_*.log
+drill.log
+restore.log
+server.log
+typecheck_out.txt
+tsc_result.txt
+
 # misc
 *.tsbuildinfo
 next-env.d.ts

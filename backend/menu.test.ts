@@ -14,6 +14,7 @@ import {
   slugify,
   toMenuDraft,
   extractMenuDraft,
+  resolveVisionConfig,
   VisionError,
   VisionNotConfiguredError,
   MenuUploadError,
@@ -248,18 +249,37 @@ describe('toMenuDraft / parseVisionJson — bounded, schema-safe drafts', () => 
 });
 
 describe('extractMenuDraft — configuration gate', () => {
-  const originalKey = process.env.OPENAI_API_KEY;
+  const originalOpenaiKey = process.env.OPENAI_API_KEY;
+  const originalGroqKey = process.env.GROQ_API_KEY;
+  const originalGroqModel = process.env.GROQ_VISION_MODEL;
 
   afterEach(() => {
-    if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
-    else process.env.OPENAI_API_KEY = originalKey;
+    if (originalOpenaiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = originalOpenaiKey;
+    if (originalGroqKey === undefined) delete process.env.GROQ_API_KEY;
+    else process.env.GROQ_API_KEY = originalGroqKey;
+    if (originalGroqModel === undefined) delete process.env.GROQ_VISION_MODEL;
+    else process.env.GROQ_VISION_MODEL = originalGroqModel;
   });
 
   it('raises VISION_NOT_CONFIGURED (not a crash) when no key is set', async () => {
     delete process.env.OPENAI_API_KEY;
+    delete process.env.GROQ_API_KEY;
     await expect(
       extractMenuDraft({ base64: 'AAAA', contentType: 'image/jpeg', businessName: 'Cafe' })
     ).rejects.toBeInstanceOf(VisionNotConfiguredError);
+  });
+
+  it('prefers Groq when both keys are set', () => {
+    process.env.OPENAI_API_KEY = 'openai-key';
+    process.env.GROQ_API_KEY = 'groq-key';
+    expect(resolveVisionConfig().provider).toBe('groq');
+  });
+
+  it('falls back to OpenAI when only the OpenAI key is set', () => {
+    delete process.env.GROQ_API_KEY;
+    process.env.OPENAI_API_KEY = 'openai-key';
+    expect(resolveVisionConfig().provider).toBe('openai');
   });
 });
 

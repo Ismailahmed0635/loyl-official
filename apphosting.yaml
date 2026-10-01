@@ -1,0 +1,109 @@
+# apphosting.yaml — Firebase App Hosting backend for Loyl (Next.js 14 in frontend/)
+#
+# App lives in frontend/ but imports backend/ + root node_modules, so rootDir
+# is the repo root (see frontend/next.config.mjs outputFileTracingRoot).
+# Build runs `npm run build` (= `next build frontend`); runtime serves it.
+#
+# Secrets (server-only) live in Secret Manager — create with:
+#   npx -y firebase-tools@latest apphosting:secrets:set <NAME>
+# Terraform owns the same 8 names in infra/secrets/main.tf.
+# NEXT_PUBLIC_* are public by design: set them as plain values below (they bake
+# into the client bundle at BUILD time) — never as secrets.
+
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+
+env:
+  # --- Server-only secrets (RUNTIME; DATABASE_URL + JWT_SECRET also needed at BUILD for prisma/build) ---
+  - variable: DATABASE_URL
+    secret: DATABASE_URL
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: JWT_SECRET
+    secret: JWT_SECRET
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: ADMIN_PASSWORD
+    secret: ADMIN_PASSWORD
+    availability:
+      - RUNTIME
+  - variable: GROQ_API_KEY
+    secret: GROQ_API_KEY
+    availability:
+      - RUNTIME
+  - variable: OPENAI_API_KEY
+    secret: OPENAI_API_KEY
+    availability:
+      - RUNTIME
+  - variable: CLOUDINARY_API_SECRET
+    secret: CLOUDINARY_API_SECRET
+    availability:
+      - RUNTIME
+  - variable: AWS_SECRET_ACCESS_KEY
+    secret: AWS_SECRET_ACCESS_KEY
+    availability:
+      - RUNTIME
+  - variable: FIREBASE_PRIVATE_KEY
+    secret: FIREBASE_PRIVATE_KEY
+    availability:
+      - RUNTIME
+  # --- Server public config (RUNTIME) ---
+  - variable: FIREBASE_PROJECT_ID
+    value: loyl-df23d
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: FIREBASE_CLIENT_EMAIL
+    value: ""
+    availability:
+      - RUNTIME
+  # --- Persistent upload mount (RUNTIME). MUST be a volume in prod; unset =
+  # repo-root storage/ which is ephemeral and loses files on redeploy. ---
+  - variable: STORAGE_DIR
+    value: /var/lib/loyl
+    availability:
+      - RUNTIME
+  # --- Client bundle (BUILD time — baked, so a wrong value needs a rebuild).
+  # TODO(prod): fill every "" below with the real production value before the
+  # first deploy — empty bakes the localhost/dev fallback into the bundle. ---
+  - variable: NEXT_PUBLIC_APP_URL
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_BKASH_NUMBER
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_NAGAD_NUMBER
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME

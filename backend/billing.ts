@@ -14,6 +14,14 @@ export const SCREENSHOT_DIR = path.join(
   process.env.STORAGE_DIR ? 'payment-screenshots' : path.join('storage', 'payment-screenshots')
 );
 export const SCREENSHOT_MAX_BYTES = 5 * 1024 * 1024;
+
+// Production misconfiguration alarm: screenshots would land on the ephemeral
+// container filesystem and vanish on redeploy until STORAGE_DIR mounts a volume.
+if (process.env.NODE_ENV === 'production' && !process.env.STORAGE_DIR) {
+  console.warn(
+    'STORAGE_DIR is unset — payment screenshots use ephemeral repo-root storage/ and vanish on redeploy. Mount a persistent volume.'
+  );
+}
 /** Allowed upload types → canonical extension/content-type. */
 export const SCREENSHOT_MIME_EXT: Record<string, string> = {
   'image/png': '.png',

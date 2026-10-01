@@ -32,3 +32,7 @@ next-env.d.ts
 .playwright-mcp/
 DEBUG.md.bak
 npm-debug.log*
+
+# local agent tooling (.claude/ and .agents/ were committed before this rule;
+# .opencode/ holds a cloned skill repo with its own .git — never commit it)
+.opencode/

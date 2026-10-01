@@ -58,7 +58,7 @@ jobs:
           workload_identity_provider: projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider
           service_account: deploy@loyl-df23d.iam.gserviceaccount.com
       # Secrets resolved at runtime, masked in logs, never baked into image.
-      # Full Batch 1 set: Terraform in infra/secrets/main.tf owns these 7 names.
+      # Full Batch 1 set: Terraform in infra/secrets/main.tf owns these 8 names.
       # NEXT_PUBLIC_* keys are public by design and stay as build args, not secrets.
       - id: secrets
         uses: google-github-actions/get-secretmanager-secrets@v2
@@ -67,22 +67,29 @@ jobs:
             DATABASE_URL:projects/loyl-df23d/secrets/DATABASE_URL/versions/latest
             JWT_SECRET:projects/loyl-df23d/secrets/JWT_SECRET/versions/latest
             ADMIN_PASSWORD:projects/loyl-df23d/secrets/ADMIN_PASSWORD/versions/latest
+            GROQ_API_KEY:projects/loyl-df23d/secrets/GROQ_API_KEY/versions/latest
             OPENAI_API_KEY:projects/loyl-df23d/secrets/OPENAI_API_KEY/versions/latest
             CLOUDINARY_API_SECRET:projects/loyl-df23d/secrets/CLOUDINARY_API_SECRET/versions/latest
             AWS_SECRET_ACCESS_KEY:projects/loyl-df23d/secrets/AWS_SECRET_ACCESS_KEY/versions/latest
             FIREBASE_PRIVATE_KEY:projects/loyl-df23d/secrets/FIREBASE_PRIVATE_KEY/versions/latest
-      # Fail fast when a secret version is missing/empty — without printing values.
+      # Fail fast when a required secret version is missing/empty — without printing values.
+      # GROQ_API_KEY / OPENAI_API_KEY are optional (unset = manual menu editor, 503 VISION_NOT_CONFIGURED);
+      # AWS_SECRET_ACCESS_KEY is legacy (Cognito transport removed in Phase 14) — warn only.
       - name: Validate secrets present (no values in logs)
         run: |
           set -euo pipefail
-          for v in DATABASE_URL JWT_SECRET ADMIN_PASSWORD OPENAI_API_KEY CLOUDINARY_API_SECRET AWS_SECRET_ACCESS_KEY FIREBASE_PRIVATE_KEY; do
+          for v in DATABASE_URL JWT_SECRET ADMIN_PASSWORD CLOUDINARY_API_SECRET FIREBASE_PRIVATE_KEY; do
             if [ -z "${!v:-}" ]; then echo "::error::Secret $v is empty or missing in loyl-df23d"; exit 1; fi
           done
-          echo "All 7 Secret Manager refs resolved."
+          for v in GROQ_API_KEY OPENAI_API_KEY AWS_SECRET_ACCESS_KEY; do
+            if [ -z "${!v:-}" ]; then echo "::warning::Optional secret $v is empty — using unset behaviour."; fi
+          done
+          echo "Required Secret Manager refs resolved."
         env:
           DATABASE_URL: ${{ steps.secrets.outputs.DATABASE_URL }}
           JWT_SECRET: ${{ steps.secrets.outputs.JWT_SECRET }}
           ADMIN_PASSWORD: ${{ steps.secrets.outputs.ADMIN_PASSWORD }}
+          GROQ_API_KEY: ${{ steps.secrets.outputs.GROQ_API_KEY }}
           OPENAI_API_KEY: ${{ steps.secrets.outputs.OPENAI_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ steps.secrets.outputs.CLOUDINARY_API_SECRET }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.secrets.outputs.AWS_SECRET_ACCESS_KEY }}
@@ -91,6 +98,17 @@ jobs:
         env:
           DATABASE_URL: ${{ steps.secrets.outputs.DATABASE_URL }}
           JWT_SECRET: ${{ steps.secrets.outputs.JWT_SECRET }}
+          # NEXT_PUBLIC_* bake into the client bundle at build time — they come
+          # from public repo Vars (not secrets). Empty = localhost/dev fallback
+          # + the layout.tsx prod warning; set them before the first deploy.
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_BKASH_NUMBER: ${{ vars.NEXT_PUBLIC_BKASH_NUMBER }}
+          NEXT_PUBLIC_NAGAD_NUMBER: ${{ vars.NEXT_PUBLIC_NAGAD_NUMBER }}
+          FIREBASE_PROJECT_ID: loyl-df23d
       # Deploy with runtime secret refs (uncomment, set $IMAGE):
       # Cloud Run resolves these at runtime — values never bake into the image.
       # - run: |

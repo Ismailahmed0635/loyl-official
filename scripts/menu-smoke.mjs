@@ -5,7 +5,7 @@
  * Flow: merchant signup -> GET (no menu yet) -> photo upload (multipart,
  *       creates the row + slug) -> photo GET/DELETE + upload validation ->
  *       extract contract (200 draft, or 503 VISION_NOT_CONFIGURED with no
- *       OPENAI_API_KEY) -> PUT draft -> 422s (hex, empty, unknown field) ->
+ *       vision key) -> PUT draft -> 422s (hex, empty, unknown field) ->
  *       publish -> public /menu/{slug} renders without a session ->
  *       unpublished + bogus slug 404 -> slug collision across merchants ->
  *       cross-tenant isolation -> auth lockdown -> merchant pages render.
@@ -204,7 +204,7 @@ async function main() {
   );
   if (extract.status === 503) {
     check(
-      'no OPENAI_API_KEY -> 503 VISION_NOT_CONFIGURED (manual editor is the fallback)',
+      'no vision key -> 503 VISION_NOT_CONFIGURED (manual editor is the fallback)',
       extractCode === 'VISION_NOT_CONFIGURED',
       `code ${extractCode}`
     );

@@ -321,8 +321,8 @@ Files:
 - frontend/components/merchant/MerchantNav.tsx      ← FAB quick-menu entry (mobile)
 - frontend/middleware.ts               ← '/menu' added to PUBLIC_PREFIXES
 - frontend/lib/api/merchant.ts         ← getDigitalMenu/saveDigitalMenu/upload/extract/remove
-- frontend/.env.example                ← OPENAI_API_KEY + OPENAI_VISION_MODEL
-- backend/menu.test.ts                 ← 32 tests (slug, draft, upload validation, config gate)
+- frontend/.env.example                ← GROQ_API_KEY + GROQ_VISION_MODEL (preferred) + OPENAI_API_KEY + OPENAI_VISION_MODEL (fallback)
+- backend/menu.test.ts                 ← 36 tests (slug, draft, upload validation, config gate)
 - frontend/lib/color.test.ts           ← 13 tests (hex, luminance, contrast, surfaces)
 - backend/validation/schemas.test.ts   ← +Digital Menu describe block
 - scripts/menu-smoke.mjs               ← 47 assertions
@@ -331,8 +331,8 @@ Deliverable: a merchant photographs their printed menu, corrects what the model 
 background colour, publishes, and gets a public URL plus a QR code a customer can scan with no
 app and no session.
 
-Notes: **OCR** is OpenAI Vision (`gpt-4o-mini`) over Node's native `fetch` — zero new npm
-dependencies. `OPENAI_API_KEY` is optional: when it is absent the API answers 503
+Notes: **OCR** is Groq Vision (`meta-llama/llama-4-scout-17b-16e-instruct`, OpenAI `gpt-4o-mini` fallback) over Node's native `fetch` — zero new npm
+dependencies. Groq (`GROQ_API_KEY`) wins when both keys are set; when neither is set the API answers 503
 `VISION_NOT_CONFIGURED` and the manual editor is a supported end state, not an error. Extraction
 never writes to the database — it returns a draft that only lands on the public page when the
 merchant saves, so a bad read is a correctable draft rather than a silently wrong menu.
@@ -371,7 +371,7 @@ everything). After any `next build`, `Remove-Item -Recurse -Force frontend\.next
 `next dev`.
 Open: no per-route rate limit on `POST extract` (an edge/platform limit, not a route-local one —
 inventing a second mechanism would be a new pattern); OCR cost control should be revisited before
-widespread rollout. `OPENAI_API_KEY` is not set in any environment yet.
+widespread rollout. No vision key is set in any environment yet.
 
 Re-verified 2026-09-26 (third pass — desktop top-nav entry reverted): `npm run typecheck`
 clean, `npm test` 251/251, `npm run build` OK (dev stopped, `frontend/.next` cleaned first),

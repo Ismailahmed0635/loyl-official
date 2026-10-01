@@ -29,6 +29,7 @@ import {
 } from '@/lib/constants';
 import { MENU_DEFAULT_BACKGROUND, contrastOn, isHexColor, normalizeHexColor, surfaceOn } from '@/lib/color';
 import { invalidate, prime } from '@/lib/api/cache';
+import { MenuLivePreview } from '@/components/merchant/MenuLivePreview';
 import {
   AlertCircle,
   BookOpen,
@@ -949,6 +950,23 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ initial, businessName })
             </Card>
           </FadeUp>
 
+          {/* Live customer preview — mobile placement (stacked, right after
+              appearance so the merchant sees it while editing items). The
+              desktop side-panel placement lives in the rail below; both read
+              the same draft state, so either frame is always current. */}
+          <div className="lg:hidden">
+            <FadeUp>
+              <Card className="p-4 sm:p-5">
+                <MenuLivePreview
+                  title={title}
+                  businessName={businessName}
+                  backgroundHex={backgroundHex}
+                  categories={categories}
+                />
+              </Card>
+            </FadeUp>
+          </div>
+
           {/* 3. Items */}
           <FadeUp>
             <Card className="flex flex-col gap-4 p-4 sm:p-5">
@@ -1307,6 +1325,23 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ initial, businessName })
 
         {/* Save / publish + QR rail */}
         <div className="flex min-w-0 flex-col gap-space-md lg:col-span-1">
+          {/* Live customer preview — desktop side panel (sticky while the
+              merchant scrolls the editor). Mobile uses the stacked placement
+              above; both read the same draft state. */}
+          <div className="hidden lg:block">
+            <div className="lg:sticky lg:top-4">
+              <FadeUp>
+                <Card className="p-4 sm:p-5">
+                  <MenuLivePreview
+                    title={title}
+                    businessName={businessName}
+                    backgroundHex={backgroundHex}
+                    categories={categories}
+                  />
+                </Card>
+              </FadeUp>
+            </div>
+          </div>
           <FadeUp>
             <Card className="flex flex-col gap-3 p-4 sm:p-5">
               <div className="flex flex-col gap-2 sm:flex-row">

@@ -20,7 +20,7 @@ import { db } from '@/backend/db';
  * a bad OCR read a visible draft instead of a silently wrong menu.
  *
  * Errors: 404 NO_MENU_PHOTO (nothing stored), 503 VISION_NOT_CONFIGURED (no
- * OPENAI_API_KEY — the manual editor is the supported fallback), 502
+ * GROQ_API_KEY nor OPENAI_API_KEY — the manual editor is the supported fallback), 502
  * VISION_FAILED (transport/auth/parse failure).
  */
 export const POST = withMerchant(async (_req: NextRequest, _session, merchant) => {

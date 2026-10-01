@@ -10,11 +10,12 @@
  *      The merchant picks any colour they like; the customer still has to be
  *      able to read it.
  *
- *   2. **Photo → draft extraction** — one call to the OpenAI Vision API using
- *      Node's own `fetch` (no new dependency), plus a tolerant parser that
- *      turns whatever the model returns into a validated draft for the
- *      merchant to correct. The merchant is always the last editor: nothing
- *      extracted here is ever published without them saving it.
+ *   2. **Photo → draft extraction** — one call to a Vision API (Groq Llama 4
+ *      Scout preferred, OpenAI fallback) using Node's own `fetch` (no new
+ *      dependency), plus a tolerant parser that turns whatever the model
+ *      returns into a validated draft for the merchant to correct. The
+ *      merchant is always the last editor: nothing extracted here is ever
+ *      published without them saving it.
  *
  * File IO is intentionally NOT here — photo storage reuses the existing
  * size-capped helpers in `backend/billing.ts` (see `MENU_PHOTO_DIR`).
@@ -158,6 +159,14 @@ export const MENU_PHOTO_DIR = path.join(
   process.env.STORAGE_DIR ? 'menu-photos' : path.join('storage', 'menu-photos')
 );
 export const MENU_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+// Production misconfiguration alarm: menu photos would land on the ephemeral
+// container filesystem and vanish on redeploy until STORAGE_DIR mounts a volume.
+if (process.env.NODE_ENV === 'production' && !process.env.STORAGE_DIR) {
+  console.warn(
+    'STORAGE_DIR is unset — menu photos use ephemeral repo-root storage/ and vanish on redeploy. Mount a persistent volume.'
+  );
+}
 
 /** Minimal file shape so tests don't need the DOM `File` type (mirrors billing). */
 export interface UploadLike {
@@ -371,6 +380,9 @@ export class VisionError extends Error {
 /** Model used unless OPENAI_VISION_MODEL overrides it. Cheap + strong on photos. */
 export const MENU_VISION_MODEL = 'gpt-4o-mini';
 export const OPENAI_VISION_URL = 'https://api.openai.com/v1/chat/completions';
+/** Groq OpenAI-compatible endpoint + default vision model (Llama 4 Scout). */
+export const GROQ_VISION_URL = 'https://api.groq.com/openai/v1/chat/completions';
+export const GROQ_VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 /** Extraction is one round trip on a large image — bound it hard. */
 export const VISION_TIMEOUT_MS = 45_000;
 
@@ -447,16 +459,48 @@ export function parseVisionJson(raw: string | null | undefined): MenuDraft {
   return toMenuDraft(json);
 }
 
-function isOpenAiError(status: number): boolean {
+function isProviderAuthError(status: number): boolean {
   return status === 401 || status === 403 || status === 429;
+}
+
+/** Resolved vision provider — Groq wins when both keys are set. */
+export interface VisionConfig {
+  provider: 'groq' | 'openai';
+  url: string;
+  apiKey: string;
+  model: string;
+}
+
+/**
+ * Picks the vision provider from env. Groq (`GROQ_API_KEY`) is checked first
+ * so merchants can use the fast/cheap path without removing the OpenAI key;
+ * OpenAI (`OPENAI_API_KEY`) remains as fallback. Throws
+ * `VisionNotConfiguredError` when neither is set — the UI falls back to the
+ * manual editor, which is a supported end state.
+ */
+export function resolveVisionConfig(): VisionConfig {
+  const groqKey = (process.env.GROQ_API_KEY || '').trim();
+  if (groqKey) {
+    const groqModel = (process.env.GROQ_VISION_MODEL || '').trim() || GROQ_VISION_MODEL;
+    return { provider: 'groq', url: GROQ_VISION_URL, apiKey: groqKey, model: groqModel };
+  }
+  const openaiKey = (process.env.OPENAI_API_KEY || '').trim();
+  if (openaiKey) {
+    const openaiModel = (process.env.OPENAI_VISION_MODEL || '').trim() || MENU_VISION_MODEL;
+    return { provider: 'openai', url: OPENAI_VISION_URL, apiKey: openaiKey, model: openaiModel };
+  }
+  throw new VisionNotConfiguredError(
+    'Menu photo recognition is not configured on this server. Add the items below by hand.'
+  );
 }
 
 /**
  * Runs the stored photo through the vision model and returns a draft.
  *
  * Throws:
- *  - `VisionNotConfiguredError` (503) when OPENAI_API_KEY is absent — the UI
- *    falls back to the manual editor, which is a supported end state.
+ *  - `VisionNotConfiguredError` (503) when neither GROQ_API_KEY nor
+ *    OPENAI_API_KEY is set — the UI falls back to the manual editor, which
+ *    is a supported end state.
  *  - `VisionError` (502) on any transport, auth or parse failure.
  */
 export async function extractMenuDraft(input: {
@@ -464,17 +508,12 @@ export async function extractMenuDraft(input: {
   contentType: string;
   businessName: string;
 }): Promise<MenuDraft> {
-  const apiKey = (process.env.OPENAI_API_KEY || '').trim();
-  if (!apiKey) {
-    throw new VisionNotConfiguredError(
-      'Menu photo recognition is not configured on this server. Add the items below by hand.'
-    );
-  }
-  const model = (process.env.OPENAI_VISION_MODEL || '').trim() || MENU_VISION_MODEL;
+  const config = resolveVisionConfig();
+  const { apiKey, model } = config;
 
   let res: Response;
   try {
-    res = await fetch(OPENAI_VISION_URL, {
+    res = await fetch(config.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
@@ -508,9 +547,9 @@ export async function extractMenuDraft(input: {
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    console.error('Menu vision request failed', res.status, body.slice(0, 400));
+    console.error('Menu vision request failed', config.provider, res.status, body.slice(0, 400));
     throw new VisionError(
-      isOpenAiError(res.status)
+      isProviderAuthError(res.status)
         ? 'Menu recognition was rejected by the provider. Check the API key or try again later.'
         : 'Menu recognition failed. Please try again.'
     );

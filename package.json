@@ -10,6 +10,7 @@
     "test": "vitest run",
     "typecheck": "tsc -p frontend/tsconfig.json",
     "db:push": "node node_modules/prisma/build/index.js db push --schema backend/prisma/schema.prisma",
+    "db:migrate": "node node_modules/prisma/build/index.js migrate deploy --schema backend/prisma/schema.prisma",
     "db:generate": "node node_modules/prisma/build/index.js generate --schema backend/prisma/schema.prisma",
     "db:studio": "node node_modules/prisma/build/index.js studio --schema backend/prisma/schema.prisma"
   },

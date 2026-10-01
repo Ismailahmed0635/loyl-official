@@ -14,6 +14,18 @@ export default defineConfig({
     },
     // Validate env vars at test startup - fail fast if missing/invalid
     envValidation: true,
+    // Cloned agent skills ship their own node:test suites (e.g.
+    // .opencode/skills/security-audit-skill/.../*.test.cjs) — vitest has no
+    // runner for them ("No test suite found"), so keep them out of this run.
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.{idea,git,cache,output,temp}/**',
+      '.opencode/**',
+      '.agents/**',
+      '.claude/**',
+      'landing page/**',
+    ],
   },
   resolve: {
     // Order matters: `@/backend/*` must match before the generic `@/*`.

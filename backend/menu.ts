@@ -20,9 +20,9 @@
  * File IO is intentionally NOT here — photo storage reuses the existing
  * size-capped helpers in `backend/billing.ts` (see `MENU_PHOTO_DIR`).
  */
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { BUCKET_MENU_PHOTOS, resolveDriver } from './storage';
 import type { Prisma } from '@prisma/client';
 import { visionDraftSchema, type MenuDraft } from '@/backend/validation/schemas';
 import { detectImageKind, imageKindMatchesExt } from '@/backend/billing';
@@ -160,11 +160,17 @@ export const MENU_PHOTO_DIR = path.join(
 );
 export const MENU_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
-// Production misconfiguration alarm: menu photos would land on the ephemeral
-// container filesystem and vanish on redeploy until STORAGE_DIR mounts a volume.
-if (process.env.NODE_ENV === 'production' && !process.env.STORAGE_DIR) {
+// Production misconfiguration alarm: with neither a persistent volume nor an
+// object store configured, menu photos would land on the ephemeral container
+// filesystem and vanish on redeploy (or never land on a read-only serverless
+// FS). Supabase Storage satisfies this instead of a mount.
+if (
+  process.env.NODE_ENV === 'production' &&
+  !process.env.STORAGE_DIR &&
+  !process.env.SUPABASE_URL
+) {
   console.warn(
-    'STORAGE_DIR is unset — menu photos use ephemeral repo-root storage/ and vanish on redeploy. Mount a persistent volume.'
+    'No persistent storage configured — set SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY or mount a volume at STORAGE_DIR, otherwise menu photos cannot be stored.'
   );
 }
 
@@ -201,7 +207,7 @@ export const MENU_PHOTO_MIME_EXT: Record<string, string> = {
  */
 export async function saveMenuPhoto(
   file: UploadLike,
-  dir: string = MENU_PHOTO_DIR
+  dir?: string
 ): Promise<string> {
   const ext = file.type ? MENU_PHOTO_MIME_EXT[file.type.toLowerCase()] : undefined;
   if (!ext) {
@@ -222,32 +228,27 @@ export async function saveMenuPhoto(
       'INVALID_FILE_TYPE'
     );
   }
-  await mkdir(dir, { recursive: true });
   const name = `${randomUUID()}${ext}`;
-  await writeFile(path.join(dir, name), buffer);
+  const contentType = Object.entries(MENU_PHOTO_MIME_EXT).find(([, e]) => e === ext)?.[0] ?? 'application/octet-stream';
+  await resolveDriver(BUCKET_MENU_PHOTOS, MENU_PHOTO_DIR, dir).put(name, buffer, contentType);
   return name;
 }
 
 /** Best-effort, path-traversal safe removal — only a bare filename is unlinked. */
 export async function deleteMenuPhoto(
   fileName: string | null | undefined,
-  dir: string = MENU_PHOTO_DIR
+  dir?: string
 ): Promise<boolean> {
   if (!fileName) return false;
   const safe = path.basename(fileName);
   if (safe !== fileName) return false;
-  try {
-    await rm(path.join(dir, safe), { force: true });
-    return true;
-  } catch {
-    return false;
-  }
+  return resolveDriver(BUCKET_MENU_PHOTOS, MENU_PHOTO_DIR, dir).remove(safe);
 }
 
 /** Reads a stored menu photo; null when missing/unknown. */
 export async function readMenuPhoto(
   fileName: string | null | undefined,
-  dir: string = MENU_PHOTO_DIR
+  dir?: string
 ): Promise<{ data: Buffer; contentType: string } | null> {
   if (!fileName) return null;
   const safe = path.basename(fileName);
@@ -255,8 +256,10 @@ export async function readMenuPhoto(
   const contentType = Object.entries(MENU_PHOTO_MIME_EXT).find(([, e]) => e === path.extname(safe).toLowerCase())?.[0];
   if (!contentType) return null;
   try {
-    return { data: await readFile(path.join(dir, safe)), contentType };
-  } catch {
+    const data = await resolveDriver(BUCKET_MENU_PHOTOS, MENU_PHOTO_DIR, dir).get(safe);
+    return data ? { data, contentType } : null;
+  } catch (err) {
+    console.warn('Menu photo read failed', err);
     return null;
   }
 }

@@ -10,8 +10,9 @@ The platform follows a modern, serverless Client-Server architecture utilizing N
 - **Backend (API Layer):** Next.js API Routes run serverless functions on Vercel to process business logic, secure database connections, and handle image manipulation.
 - **Identity & Access Management (IAM):** Firebase Email/Password handles merchant sign-in; the server verifies the ID token and issues the `loyl_session` JWT. Customer check-in collects name + phone (no verification step).
 - **Data & Storage:** 
-  - API Routes communicate with **Supabase (PostgreSQL)** for CRUD operations.
-  - Media files (logos, generated posters) are sent to **Cloudinary** via REST APIs.
+  - API Routes communicate with **Supabase (PostgreSQL)** for CRUD operations (via Prisma; local dev uses local PostgreSQL).
+  - Uploads (payment screenshots, menu photos) go through **`backend/storage.ts`**: Supabase Storage in **private buckets** when `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are set (production), the local `storage/` directory otherwise (dev/test). Buckets are never public — objects are only read back through the guarded admin/merchant routes.
+  - Media files (logos, generated posters) are sent to **Cloudinary** via REST APIs — *plan only; not wired up (see the doc-drift note below).*
 
 ### 3. Core Operational Workflows
 
@@ -42,7 +43,7 @@ Maps link elsewhere — plus the merchant's Website/Facebook/Instagram links fro
 the customer context GET (`websiteUrl`/`facebookUrl`/`instagramUrl`) and hidden when unset.
 
 #### 3.4 Digital Menu Card Flow (Phase 12)
-1. **Capture:** Merchant opens `/menu` and picks a photo (camera or gallery) — or taps the Branch Page camera icon (`app/(merchant)/branches/page.tsx`), which opens the file chooser directly in the click handler, uploads through `uploadMenuPhoto`, and routes to `/menu` with the thumbnail already in place (no `capture=1` hand-off: a programmatic `input.click()` outside the user gesture raises no chooser). `POST /api/merchant/menu/photo` validates mime + size, stores it merchant-only under `storage/menu-photos`, and creates the unpublished `DigitalMenu` row on the first upload so the file has somewhere to live. The row's `slug` is derived from the business name and allocated by probing the unique column (`-1`, `-2`, … on collision).
+1. **Capture:** Merchant opens `/menu` and picks a photo (camera or gallery) — or taps the Branch Page camera icon (`app/(merchant)/branches/page.tsx`), which opens the file chooser directly in the click handler, uploads through `uploadMenuPhoto`, and routes to `/menu` with the thumbnail already in place (no `capture=1` hand-off: a programmatic `input.click()` outside the user gesture raises no chooser). `POST /api/merchant/menu/photo` validates mime + size, stores it merchant-only through `backend/storage.ts` (Supabase Storage `menu-photos` bucket in production, `storage/menu-photos` locally), and creates the unpublished `DigitalMenu` row on the first upload so the file has somewhere to live. The row's `slug` is derived from the business name and allocated by probing the unique column (`-1`, `-2`, … on collision).
 2. **Read (optional):** `POST /api/merchant/menu/extract` sends the stored photo to Groq Vision (`meta-llama/llama-4-scout-17b-16e-instruct`, OpenAI `gpt-4o-mini` fallback, native `fetch`, no new dependency) and returns a **draft only — nothing is written**. No vision key ⇒ `503 VISION_NOT_CONFIGURED`, and the manual editor is a supported end state.
 3. **Correct:** The merchant edits categories/items/prices in `MenuEditor` and picks `backgroundHex`. Text colour is derived from WCAG relative luminance (`frontend/lib/color.ts`, shared with the public page so the preview and the published result cannot disagree).
 4. **Save / Publish:** `PUT /api/merchant/menu` runs a full replace inside a `$transaction`; `publish: true` stamps `publishedAt` on the first publish only. Validation is `saveMenuSchema` — `.strict()`, so an unknown field is a 422 rather than a silent drop.
@@ -104,10 +105,11 @@ motion skips both windows.
    `generateMetadata` does not help (metadata flushes the shell too). Removing the boundary returns a real 404 and
    ships the fully server-rendered document in a single flush.
 
-> **Doc drift — flag, not yet fixed.** §2 and §3.2 above describe the original plan: Cloudinary
-> for media (payment screenshots and menu photos are actually stored locally under `storage/`),
-> the `sharp` poster overlay (the QR page renders a `qrcode` data URL directly, no `sharp`), and
-> Supabase (the code talks to PostgreSQL through Prisma). §3.3 describes the pre-Phase-9 instant
+> **Doc drift — flag, partially fixed.** §2 and §3.2 above describe the original plan. Uploads are now handled by
+> `backend/storage.ts` (Supabase Storage private buckets in production, local `storage/` in dev — verified by
+> `scripts/storage-smoke.mjs`), so the Cloudinary path for payment screenshots and menu photos is superseded. Still
+> outstanding: the `sharp` poster overlay (the QR page renders a `qrcode` data URL directly, no `sharp`), and Cloudinary
+> for logos/posters. §3.3 describes the pre-Phase-9 instant
 > stamp; scans now open a `ScanRequest` that a merchant app must approve before `lastScannedAt`
 > — and therefore the 24h cooldown — starts. These are pre-existing mismatches outside the Phase
 > 12 scope and should be rewritten together in one pass.

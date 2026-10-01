@@ -249,7 +249,7 @@ model PaymentRequest {
   amount        Decimal          @db.Decimal(10, 2) @default(0)
   /// Tier the merchant asked for at checkout (admin can override on approve).
   requestedTier SubscriptionTier @default(MONTHLY)
-  /// Screenshot filename under storage/payment-screenshots — cleared when reviewed.
+  /// Screenshot filename (bare filename in the payment-screenshots store) — cleared when reviewed.
   screenshotPath String?
   status        PaymentStatus    @default(PENDING)
   createdAt     DateTime         @default(now())

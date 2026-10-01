@@ -345,7 +345,8 @@ stay readable. Those maths live in `frontend/lib/color.ts` because the editor re
 pairing as a live preview — one implementation, two consumers. The hex reaches the page as an
 inline `style`, the one thing Tailwind cannot express as a class. **Price** is free text
 (`৳250`, `Market price`), so a no-price item just omits the column. The photo is a source, never
-published: it is stored merchant-only under `storage/menu-photos` and is not linked from the
+published: it is stored merchant-only through `backend/storage.ts` (Supabase Storage `menu-photos` bucket in
+production, `storage/menu-photos` locally) and is not linked from the
 public page. PDF download is `window.print()` (browser Save-as-PDF) — no new dependency.
 `saveMenuSchema` is `.strict()` while `visionDraftSchema` strips unknown keys / uses `.catch()`:
 upstream model output must never fail an extraction, but a client request must never smuggle an

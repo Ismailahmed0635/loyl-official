@@ -1,7 +1,7 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { SubscriptionTier } from '@prisma/client';
+import { BUCKET_PAYMENT_SCREENSHOTS, resolveDriver } from './storage';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -15,11 +15,17 @@ export const SCREENSHOT_DIR = path.join(
 );
 export const SCREENSHOT_MAX_BYTES = 5 * 1024 * 1024;
 
-// Production misconfiguration alarm: screenshots would land on the ephemeral
-// container filesystem and vanish on redeploy until STORAGE_DIR mounts a volume.
-if (process.env.NODE_ENV === 'production' && !process.env.STORAGE_DIR) {
+// Production misconfiguration alarm: with neither a persistent volume nor an
+// object store configured, screenshots would land on the ephemeral
+// container filesystem and vanish on redeploy (or never land at all on a
+// read-only serverless FS). Supabase Storage satisfies this instead of a mount.
+if (
+  process.env.NODE_ENV === 'production' &&
+  !process.env.STORAGE_DIR &&
+  !process.env.SUPABASE_URL
+) {
   console.warn(
-    'STORAGE_DIR is unset — payment screenshots use ephemeral repo-root storage/ and vanish on redeploy. Mount a persistent volume.'
+    'No persistent storage configured — set SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY or mount a volume at STORAGE_DIR, otherwise payment screenshots cannot be stored.'
   );
 }
 /** Allowed upload types → canonical extension/content-type. */
@@ -145,7 +151,7 @@ export function imageKindMatchesExt(kind: DetectedImageKind, ext: string): boole
  */
 export async function saveScreenshot(
   file: UploadLike,
-  dir: string = SCREENSHOT_DIR
+  dir?: string
 ): Promise<string> {
   const ext = file.type ? SCREENSHOT_MIME_EXT[file.type.toLowerCase()] : undefined;
   if (!ext) {
@@ -169,9 +175,9 @@ export async function saveScreenshot(
       'INVALID_FILE_TYPE'
     );
   }
-  await mkdir(dir, { recursive: true });
   const name = `${randomUUID()}${ext}`;
-  await writeFile(path.join(dir, name), buffer);
+  const contentType = Object.entries(SCREENSHOT_MIME_EXT).find(([, e]) => e === ext)?.[0] ?? 'application/octet-stream';
+  await resolveDriver(BUCKET_PAYMENT_SCREENSHOTS, SCREENSHOT_DIR, dir).put(name, buffer, contentType);
   return name;
 }
 
@@ -182,24 +188,18 @@ export async function saveScreenshot(
  */
 export async function deleteScreenshot(
   fileName: string | null | undefined,
-  dir: string = SCREENSHOT_DIR
+  dir?: string
 ): Promise<boolean> {
   if (!fileName) return false;
   const safe = path.basename(fileName);
   if (safe !== fileName) return false;
-  try {
-    await rm(path.join(dir, safe), { force: true });
-    return true;
-  } catch (err) {
-    console.warn('Screenshot cleanup failed', err);
-    return false;
-  }
+  return resolveDriver(BUCKET_PAYMENT_SCREENSHOTS, SCREENSHOT_DIR, dir).remove(safe);
 }
 
 /** Reads a stored screenshot for the admin viewer; null when missing/unknown. */
 export async function readScreenshot(
   fileName: string | null | undefined,
-  dir: string = SCREENSHOT_DIR
+  dir?: string
 ): Promise<{ data: Buffer; contentType: string } | null> {
   if (!fileName) return null;
   const safe = path.basename(fileName);
@@ -208,9 +208,10 @@ export async function readScreenshot(
   const contentType = Object.entries(SCREENSHOT_MIME_EXT).find(([, e]) => e === ext)?.[0];
   if (!contentType) return null;
   try {
-    const data = await readFile(path.join(dir, safe));
-    return { data, contentType };
-  } catch {
+    const data = await resolveDriver(BUCKET_PAYMENT_SCREENSHOTS, SCREENSHOT_DIR, dir).get(safe);
+    return data ? { data, contentType } : null;
+  } catch (err) {
+    console.warn('Screenshot read failed', err);
     return null;
   }
 }

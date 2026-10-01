@@ -35,12 +35,25 @@ jobs:
           fi
           echo "Secret-leak scan clean."
       - run: npm ci --ignore-scripts
+      # --ignore-scripts skips @prisma/client's postinstall, which is what
+      # normally runs `prisma generate`. Without it the generated client is
+      # absent and `npm test` dies with "Cannot find module
+      # '.prisma/client/default'" (5 suites). The schema lives at
+      # backend/prisma/, so it is resolved via package.json#prisma.schema.
+      - run: npm run db:generate
       - run: npm run typecheck
       - run: npm test
 
+  # DISABLED 2026-10-01: deploy target changed from Cloud Run to Vercel.
+  # This job also carried a placeholder workload-identity provider
+  # (projects/123456789/...) so it could never have authenticated, and its
+  # `npm ci --ignore-scripts && npm run build` was missing `prisma generate`.
+  # Vercel now builds on push; keep the build-test job as the CI gate.
+  # To revive GCP deploys: create the WIF pool/provider, replace the IDs below,
+  # and add `npm run db:generate` before `npm run build`.
   deploy-prod:
     needs: build-test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: false && github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production

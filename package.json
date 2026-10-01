@@ -9,6 +9,7 @@
     "lint": "next lint frontend",
     "test": "vitest run",
     "typecheck": "tsc -p frontend/tsconfig.json",
+    "postinstall": "prisma generate",
     "db:push": "node node_modules/prisma/build/index.js db push --schema backend/prisma/schema.prisma",
     "db:migrate": "node node_modules/prisma/build/index.js migrate deploy --schema backend/prisma/schema.prisma",
     "db:generate": "node node_modules/prisma/build/index.js generate --schema backend/prisma/schema.prisma",
@@ -52,5 +53,8 @@
     "@prisma/engines@5.22.0": true,
     "prisma@5.22.0": true,
     "esbuild@0.21.5": true
+  },
+  "prisma": {
+    "schema": "backend/prisma/schema.prisma"
   }
 }

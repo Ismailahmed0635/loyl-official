@@ -36,3 +36,6 @@ npm-debug.log*
 # local agent tooling (.claude/ and .agents/ were committed before this rule;
 # .opencode/ holds a cloned skill repo with its own .git — never commit it)
 .opencode/
+
+# vercel CLI link state (project ref is local to this machine)
+.vercel/

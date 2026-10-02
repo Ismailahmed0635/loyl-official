@@ -7,7 +7,7 @@ import { buildScanUrl, generateQrDataUrl, resolveRequestOrigin } from '@/lib/pos
 // GET /api/offers/[id]/qr — Generates the printable QR payload for an offer
 export const GET = withMerchant(async (req: NextRequest, session, merchant, { params }) => {
   try {
-    const id = params?.id;
+    const { id } = await params;
     if (!id) return apiError('Missing offer id', 'BAD_REQUEST', 400);
 
     const offer = await db.offer.findFirst({

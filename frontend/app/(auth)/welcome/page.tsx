@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import { slideUp, fadeUp } from '@/lib/motion/variants';
+import { slideUpVisible, fadeUp } from '@/lib/motion/variants';
 import {
   isValidOptionalPhone,
   loginWithEmail,
@@ -17,9 +18,17 @@ import {
   validatePassword,
 } from '@/lib/firebase/email-auth';
 import { createEmailSession } from '@/lib/api/client';
-import { CrowdCanvas } from '@/components/ui/skiper-ui/skiper39';
 import { stashSetupPhone } from '@/lib/setupPhone';
 import { QrCode, Store, Sparkles } from 'lucide-react';
+
+// The crowd band pulls in gsap (~21 kB gz, the single heaviest parse/exec task
+// on this page under CPU throttle). Loaded on demand after hydration — see the
+// crowdMounted gate below — so it is never part of the initial route bundle
+// and can't sit in the critical path between FCP and the hero's first paint.
+const CrowdCanvas = dynamic(
+  () => import('@/components/ui/skiper-ui/skiper39').then((m) => m.CrowdCanvas),
+  { ssr: false }
+);
 
 type Mode = 'register' | 'login';
 
@@ -129,7 +138,7 @@ export default function WelcomePage() {
         <motion.div
           initial={shouldReduceMotion ? false : 'hidden'}
           animate="visible"
-          variants={slideUp}
+          variants={slideUpVisible}
           className="max-w-md mx-auto"
         >
           {/* Brand trust overhead badge */}

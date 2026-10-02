@@ -3,6 +3,13 @@ import { apiSuccess, apiError } from '@/backend/api/response';
 import { withMerchantApp } from '@/backend/api/handler';
 import { buildCardState, grantStamp } from '@/backend/scan';
 import { recordActivity } from '@/backend/activity';
+import {
+  APPROVAL_BURST_WINDOW_MS,
+  APPROVAL_PROBE_LIMIT,
+  approvalBurstMessage,
+  isApprovalBurst,
+  recordSecurityAlert,
+} from '@/backend/alerts';
 import { db } from '@/backend/db';
 
 /**
@@ -22,7 +29,7 @@ import { db } from '@/backend/db';
  */
 export const POST = withMerchantApp(async (req: NextRequest, session, merchant, device, ctx) => {
   try {
-    const id = ctx.params?.id;
+    const { id } = await ctx.params;
     if (!id) return apiError('Missing request id', 'BAD_REQUEST', 400);
 
     const request = await db.scanRequest.findFirst({
@@ -100,6 +107,46 @@ export const POST = withMerchantApp(async (req: NextRequest, session, merchant, 
     });
 
     const card = buildCardState(row, required);
+
+    // RT-03: stolen-device detection. Approval is app-only, so a burst of
+    // approvals usually means the registered phone is being used by someone
+    // else. Best-effort (never fails the approval) and PII-free.
+    try {
+      const probes = await db.scanRequest.findMany({
+        where: {
+          merchantId: merchant.id,
+          status: 'APPROVED',
+          decidedAt: { not: null },
+        },
+        orderBy: { decidedAt: 'desc' },
+        take: APPROVAL_PROBE_LIMIT,
+        select: { decidedAt: true },
+      });
+      const timestamps = probes.map((p) => (p.decidedAt ? p.decidedAt.getTime() : 0));
+      if (isApprovalBurst(timestamps, claimedAt.getTime())) {
+        // One alert per window — a 60-approval spree must not spam 60 rows.
+        const recentAlert = await db.securityAlert.findFirst({
+          where: {
+            merchantId: merchant.id,
+            kind: 'APPROVAL_BURST',
+            createdAt: { gte: new Date(claimedAt.getTime() - APPROVAL_BURST_WINDOW_MS) },
+          },
+          select: { id: true },
+        });
+        if (!recentAlert) {
+          await recordSecurityAlert({
+            merchantId: merchant.id,
+            kind: 'APPROVAL_BURST',
+            deviceId: device.id,
+            message: approvalBurstMessage(timestamps.length, APPROVAL_BURST_WINDOW_MS),
+            count: timestamps.length,
+          });
+        }
+      }
+    } catch {
+      /* alerting must never break an approval */
+    }
+
     return apiSuccess({
       request: {
         id: request.id,

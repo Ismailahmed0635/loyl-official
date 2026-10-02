@@ -96,6 +96,8 @@ model Merchant {
   devices         MerchantDevice[]
   /// Digital Menu Card: at most one menu row per merchant (Phase 12).
   digitalMenu     DigitalMenu?
+  /// RT-03: security signals shown to the merchant (stolen-device detection).
+  securityAlerts  SecurityAlert[]
 
   @@index([phoneNumber])
   @@index([email])
@@ -488,3 +490,61 @@ enum MenuModifierSelection {
   MULTI
 }
 
+
+// --- RT-02/RT-03: audit trail + security alerts --------------------------------
+
+/// RT-02: append-only admin audit trail — who did what to which row, and when.
+/// Rows are only ever INSERTED (no update/delete path exists in the app), so
+/// the history cannot be rewritten through the product. `detail` is a small
+/// JSON blob of non-PII context (tier, merchant id, amounts) — never phones,
+/// tokens or passwords. Plain string ids (no relations) like ActivityEvent,
+/// so the trail survives deletion of the row it references.
+model AdminAction {
+  id         String   @id @default(cuid())
+  /// SCREAMING_SNAKE action name (APPROVE_PAYMENT, REJECT_PAYMENT, MERCHANT_<X>).
+  action     String
+  /// What was acted on: PAYMENT_REQUEST | MERCHANT.
+  targetType String
+  /// Row id of the target (null for session-level actions).
+  targetId   String?
+  /// Acting admin's session userId (the admin session is a single identity).
+  actorId    String
+  /// JSON string of safe context; null when there is nothing to record.
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([targetType, targetId])
+}
+
+/// RT-03: security signal surfaced to the merchant.
+enum SecurityAlertKind {
+  /// Too many check-in approvals in a short window (stolen-device signal).
+  APPROVAL_BURST
+  /// A new app installation registered its public key.
+  DEVICE_REGISTERED
+  /// A device was revoked by the merchant.
+  DEVICE_REVOKED
+}
+
+/// RT-03: one security signal for a merchant. Best-effort write (like
+/// ActivityEvent): a failed insert must never break the action that
+/// triggered it — the alert is a notification, not the transaction.
+model SecurityAlert {
+  id         String            @id @default(cuid())
+  merchantId String
+  kind       SecurityAlertKind
+  /// Plain device id (no relation): the alert survives device deletion.
+  deviceId   String?
+  /// PII-free human summary ("12 approvals in 5 minutes").
+  message    String
+  /// Machine-readable magnitude (e.g. the approval count behind the burst).
+  count      Int?
+  createdAt  DateTime          @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, createdAt])
+  @@index([merchantId, kind])
+}

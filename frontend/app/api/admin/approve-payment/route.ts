@@ -3,6 +3,7 @@ import { apiError, apiSuccess } from '@/backend/api/response';
 import { withAdmin } from '@/backend/api/handler';
 import { paymentActionSchema } from '@/backend/validation/schemas';
 import { deleteScreenshot, subscriptionGrant } from '@/backend/billing';
+import { recordAdminAction } from '@/backend/adminAudit';
 import { db } from '@/backend/db';
 
 // POST /api/admin/approve-payment — BUILD.md manual verification workflow,
@@ -12,7 +13,7 @@ import { db } from '@/backend/db';
 //      tier): ACTIVE + tier + expiry (FREE never expires),
 //   3. clears the screenshot pointer in the same transaction and unlinks the
 //      stored file right after commit — reviewed screenshots never linger.
-export const POST = withAdmin(async (req: NextRequest) => {
+export const POST = withAdmin(async (req: NextRequest, session) => {
   let body: unknown = null;
   try {
     body = await req.json();
@@ -59,6 +60,22 @@ export const POST = withAdmin(async (req: NextRequest) => {
         data: { screenshotPath: null },
       });
     }
+    // RT-02: audit row commits with the approval — same transaction.
+    await recordAdminAction(
+      {
+        action: 'APPROVE_PAYMENT',
+        targetType: 'PAYMENT_REQUEST',
+        targetId: payment.id,
+        actorId: session.userId,
+        detail: {
+          merchantId: payment.merchantId,
+          grantedTier,
+          requestedTier: payment.requestedTier,
+          amount: Number(payment.amount),
+        },
+      },
+      tx
+    );
     return { payment: { ...payment, screenshotPath: null }, merchant };
   });
 

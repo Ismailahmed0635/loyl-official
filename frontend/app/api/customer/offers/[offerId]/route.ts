@@ -23,7 +23,7 @@ import { db } from '@/backend/db';
  */
 export async function GET(req: NextRequest, ctx: RouteContext) {
   try {
-    const offerId = ctx.params?.offerId;
+    const { offerId } = await ctx.params;
     if (!offerId) return apiError('Missing offer id', 'BAD_REQUEST', 400);
 
     const offer = await db.offer.findFirst({

@@ -26,6 +26,7 @@ import {
   adminMerchantListQuerySchema,
   adminMerchantActionSchema,
   adminPaymentListQuerySchema,
+  adminActionListQuerySchema,
   paymentActionSchema,
   checkoutSchema,
   scanRequestListQuerySchema,
@@ -1049,5 +1050,36 @@ describe('Email Session Schema', () => {
         email: 'shop@example.com',
       }).success
     ).toBe(false);
+  });
+});
+
+describe('RT-02 admin action list query (GET /api/admin/actions)', () => {
+  it('accepts an empty query (defaults live in the route)', () => {
+    expect(adminActionListQuerySchema.safeParse({}).success).toBe(true);
+  });
+
+  it('accepts filters + coerced pagination', () => {
+    const parsed = adminActionListQuerySchema.safeParse({
+      action: 'APPROVE_PAYMENT',
+      targetType: 'PAYMENT_REQUEST',
+      page: '2',
+      pageSize: '50',
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data).toMatchObject({ action: 'APPROVE_PAYMENT', page: 2, pageSize: 50 });
+    }
+  });
+
+  it('rejects an unknown target type', () => {
+    expect(
+      adminActionListQuerySchema.safeParse({ targetType: 'CUSTOMER' }).success
+    ).toBe(false);
+  });
+
+  it('rejects out-of-range pagination', () => {
+    expect(adminActionListQuerySchema.safeParse({ page: '0' }).success).toBe(false);
+    expect(adminActionListQuerySchema.safeParse({ pageSize: '101' }).success).toBe(false);
+    expect(adminActionListQuerySchema.safeParse({ pageSize: 'x' }).success).toBe(false);
   });
 });

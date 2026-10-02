@@ -4,6 +4,7 @@ import { withMerchant } from '@/backend/api/handler';
 import { checkRateLimit, recordHit, MUTATION_MERCHANT } from '@/backend/rateLimit';
 import { deviceRegisterSchema } from '@/backend/validation/schemas';
 import { registerMerchantDevice, toDeviceSummary } from '@/backend/devices';
+import { recordSecurityAlert } from '@/backend/alerts';
 import { db } from '@/backend/db';
 
 /**
@@ -70,6 +71,15 @@ export const POST = withMerchant(async (req: NextRequest, session, merchant) => 
     if (!result.ok) {
       return apiError(result.failure.message, result.failure.code, result.failure.status);
     }
+
+    // RT-03: device-change notice — a merchant should hear about a new key
+    // registering while their phone is gone. Best-effort, PII-free.
+    await recordSecurityAlert({
+      merchantId: merchant.id,
+      kind: 'DEVICE_REGISTERED',
+      deviceId: result.device.id,
+      message: `App device "${result.device.deviceName}" registered — if you don't recognise it, revoke it.`,
+    });
 
     return apiSuccess({ device: result.device }, 201);
   } catch (error) {

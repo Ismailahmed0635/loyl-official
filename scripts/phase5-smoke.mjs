@@ -10,7 +10,8 @@
  *       APPROVED + merchant subscription ACTIVE for 30 days) / reject
  *       (subscription untouched) + re-review 409s -> merchants list/search/
  *       filter/validation -> merchant actions (activate/expire/revoke/suspend
- *       with 403 ACCOUNT_SUSPENDED/restore) -> logout -> pages render.
+ *       with 403 ACCOUNT_SUSPENDED/restore) -> RT-02 admin audit feed ->
+ *       pages render -> logout (+ RT-01 replay 401).
  *
  * Note: exactly ONE wrong-password attempt is made (cleared by the successful
  * login) so the 5-fail/60s throttle never locks the smoke out on re-runs.
@@ -641,9 +642,71 @@ async function main() {
       `status ${restore.status}, suspended ${restoredRow?.suspended}, merchant stats ${unlockedMerchant.status}`
     );
 
+    // --- RT-02: append-only admin audit trail -------------------------------
+    // Every state-changing admin action above must be reconstructible from
+    // the feed: who (actorId), what (action/target), when (createdAt).
+    const auditFeed = await call('/api/admin/actions?page=1&pageSize=50', {
+      method: 'GET',
+      cookie: adminCookie,
+    });
+    const auditRows = auditFeed.json?.data?.actions || [];
+    const approveRow = auditRows.find((a) => a.action === 'APPROVE_PAYMENT' && a.targetId === p1.id);
+    const rejectRow = auditRows.find((a) => a.action === 'REJECT_PAYMENT' && a.targetId === p2.id);
+    const merchantRows = auditRows.filter((a) => a.targetType === 'MERCHANT' && a.targetId === m2Id);
+    check(
+      'RT-02: audit feed 200 with APPROVE_PAYMENT + REJECT_PAYMENT rows (actor=admin)',
+      auditFeed.status === 200 &&
+        !!approveRow &&
+        approveRow.actorId === 'admin' &&
+        !!rejectRow &&
+        rejectRow.actorId === 'admin',
+      `status ${auditFeed.status}, rows ${auditRows.length}, approve ${!!approveRow}, reject ${!!rejectRow}`
+    );
+    check(
+      'RT-02: all five MERCHANT_* actions recorded for the target merchant',
+      ['MERCHANT_ACTIVATE', 'MERCHANT_EXPIRE', 'MERCHANT_REVOKE', 'MERCHANT_SUSPEND', 'MERCHANT_RESTORE'].every(
+        (name) => merchantRows.some((a) => a.action === name)
+      ),
+      JSON.stringify(merchantRows.map((a) => a.action))
+    );
+    const approveDetail = approveRow?.detail;
+    check(
+      'RT-02: detail is parsed JSON with safe facts only (no phone number)',
+      !!approveDetail &&
+        typeof approveDetail === 'object' &&
+        !JSON.stringify(approveDetail).includes(M1_PHONE),
+      JSON.stringify(approveDetail)
+    );
+    const auditFiltered = await call('/api/admin/actions?action=APPROVE_PAYMENT', {
+      method: 'GET',
+      cookie: adminCookie,
+    });
+    const filteredRows = auditFiltered.json?.data?.actions || [];
+    check(
+      'RT-02: ?action= filter narrows the feed',
+      auditFiltered.status === 200 &&
+        filteredRows.length > 0 &&
+        filteredRows.every((a) => a.action === 'APPROVE_PAYMENT'),
+      `status ${auditFiltered.status}, rows ${filteredRows.length}`
+    );
+    const auditNoAuth = await call('/api/admin/actions', { method: 'GET' });
+    check(
+      'RT-02: audit feed is admin-only (401 without a session)',
+      auditNoAuth.status === 401,
+      `status ${auditNoAuth.status}`
+    );
+
+    // --- L. Pages render (admin session cookie required; /admin/login is public)
+    // Runs BEFORE logout on purpose: RT-01 revokes the token server-side, so
+    // the cookie is dead from K onward.
+    await pageRenders('/admin', adminCookie);
+    await pageRenders('/admin/merchants', adminCookie);
+    await pageRenders('/admin/billing', adminCookie);
+    await pageRenders('/admin/login');
+
     // --- K. Logout ----------------------------------------------------------
-    // Sessions are stateless JWTs: logout must clear the cookie client-side
-    // (the token itself stays cryptographically valid until its 12h expiry).
+    // RT-01: clearing the cookie is not enough on its own — logout also
+    // revokes the token's jti server-side, so replaying the old cookie dies.
     const logout = await call('/api/auth/logout', { cookie: adminCookie });
     const clearedCookie = (logout.setCookie || []).find((c) => c.startsWith('loyl_session='));
     check(
@@ -651,12 +714,12 @@ async function main() {
       logout.status === 200 && !!clearedCookie && /loyl_session=;/.test(clearedCookie),
       `logout ${logout.status}, set-cookie ${clearedCookie || 'missing'}`
     );
-
-    // --- L. Pages render (admin session cookie required; /admin/login is public)
-    await pageRenders('/admin', adminCookie);
-    await pageRenders('/admin/merchants', adminCookie);
-    await pageRenders('/admin/billing', adminCookie);
-    await pageRenders('/admin/login');
+    const replay = await call('/api/admin/payments', { method: 'GET', cookie: adminCookie });
+    check(
+      'RT-01: replaying the logged-out token -> 401 (server-side revocation)',
+      replay.status === 401 && replay.json?.error?.code === 'UNAUTHORIZED',
+      `status ${replay.status}, code ${replay.json?.error?.code}`
+    );
   } finally {
     await db.$disconnect();
   }

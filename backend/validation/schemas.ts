@@ -836,6 +836,25 @@ export const adminPaymentListQuerySchema = z.object({
   pageSize: adminPageSizeField,
 });
 
+/**
+ * GET /api/admin/actions — the RT-02 audit trail feed. Optional filters:
+ * a specific action name and/or target type, plus the shared pagination.
+ */
+export const adminActionListQuerySchema = z.object({
+  action: z
+    .string()
+    .trim()
+    .max(50, { message: 'Action filter looks malformed' })
+    .optional(),
+  targetType: z
+    .enum(['PAYMENT_REQUEST', 'MERCHANT'], {
+      errorMap: () => ({ message: 'Unknown target type' }),
+    })
+    .optional(),
+  page: adminPageField,
+  pageSize: adminPageSizeField,
+});
+
 /** Phase 7: every tier an approval can grant (admin dropdown + checkout request). */
 export const SUBSCRIPTION_TIERS = ['FREE', 'MONTHLY', 'YEARLY', 'PREMIUM'] as const;
 
@@ -861,6 +880,7 @@ export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
 export type AdminMerchantListInput = z.infer<typeof adminMerchantListQuerySchema>;
 export type AdminMerchantActionInput = z.infer<typeof adminMerchantActionSchema>;
 export type AdminPaymentListInput = z.infer<typeof adminPaymentListQuerySchema>;
+export type AdminActionListInput = z.infer<typeof adminActionListQuerySchema>;
 export type PaymentActionInput = z.infer<typeof paymentActionSchema>;
 
 // --- Phase 7: Payments & Billing -------------------------------------------

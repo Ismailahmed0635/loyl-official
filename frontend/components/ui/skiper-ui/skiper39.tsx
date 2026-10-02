@@ -99,7 +99,7 @@ const CrowdCanvas = ({ src, rows = 15, cols = 7 }: CrowdCanvasProps) => {
 
     // TYPES
     type Peep = {
-      image: HTMLImageElement;
+      image: CanvasImageSource;
       rect: number[];
       width: number;
       height: number;
@@ -118,7 +118,7 @@ const CrowdCanvas = ({ src, rows = 15, cols = 7 }: CrowdCanvasProps) => {
       image,
       rect,
     }: {
-      image: HTMLImageElement;
+      image: CanvasImageSource;
       rect: number[];
     }): Peep => {
       const peep: Peep = {
@@ -162,7 +162,13 @@ const CrowdCanvas = ({ src, rows = 15, cols = 7 }: CrowdCanvasProps) => {
     };
 
     // MAIN
+    // Placeholder draw source; replaced before init() by the worker-decoded
+    // ImageBitmap (see the worker block below), or by this same <img> on the
+    // main-thread fallback path.
     const img = document.createElement("img");
+    let peepSource: CanvasImageSource = img;
+    let sourceWidth = 0;
+    let sourceHeight = 0;
     const stage = {
       width: 0,
       height: 0,
@@ -171,10 +177,13 @@ const CrowdCanvas = ({ src, rows = 15, cols = 7 }: CrowdCanvasProps) => {
     const allPeeps: Peep[] = [];
     const availablePeeps: Peep[] = [];
     const crowd: Peep[] = [];
+    let initToken = 0;
+    let decodeWorker: Worker | null = null;
 
     const createPeeps = () => {
       const { rows, cols } = config;
-      const { naturalWidth: width, naturalHeight: height } = img;
+      const width = sourceWidth;
+      const height = sourceHeight;
       const total = rows * cols;
       const rectWidth = width / rows;
       const rectHeight = height / cols;
@@ -182,7 +191,7 @@ const CrowdCanvas = ({ src, rows = 15, cols = 7 }: CrowdCanvasProps) => {
       for (let i = 0; i < total; i++) {
         allPeeps.push(
           createPeep({
-            image: img,
+            image: peepSource,
             rect: [
               (i % rows) * rectWidth,
               ((i / rows) | 0) * rectHeight,
@@ -195,9 +204,24 @@ const CrowdCanvas = ({ src, rows = 15, cols = 7 }: CrowdCanvasProps) => {
     };
 
     const initCrowd = () => {
-      while (availablePeeps.length) {
-        addPeepToCrowd().walk.progress(Math.random());
-      }
+      // Start the walkers in small batches instead of all 105 in one task.
+      // Building every gsap timeline up-front was a single 250–340 ms long
+      // task under Lighthouse's 4x CPU throttle — the load-time jank a low-end
+      // phone actually feels. Batches of 4 stay well under the 50 ms mark.
+      const token = ++initToken;
+      const step = () => {
+        if (token !== initToken) return; // a resize() superseded this queue
+        let started = 0;
+        while (availablePeeps.length && started < 4) {
+          addPeepToCrowd().walk.progress(Math.random());
+          started += 1;
+        }
+        if (availablePeeps.length) requestAnimationFrame(step);
+      };
+      // Deferred one frame: running the first batch synchronously merged it
+      // into resize()'s canvas-allocation task (measured as a 176 ms long
+      // task under Lighthouse's 4x throttle).
+      requestAnimationFrame(step);
     };
 
     const addPeepToCrowd = () => {
@@ -226,11 +250,27 @@ const CrowdCanvas = ({ src, rows = 15, cols = 7 }: CrowdCanvasProps) => {
       availablePeeps.push(peep);
     };
 
-    const render = () => {
+    // Backing-store ratio: the wrapper CSS-transforms the canvas down to ~40%
+    // of its layout size, so a ratio of 1 is already ~2.5x oversampled at
+    // display resolution. Capping at 1 cuts the canvas buffer from ~9 MB
+    // (phone dpr 1.75-3) to ~3 MB — the alloc and per-frame clear both scale
+    // with it — with zero visible loss for a decorative band.
+    const backingDpr = () => Math.min(window.devicePixelRatio || 1, 1);
+
+    let lastFrameTime = 0;
+
+    const render = (time: number) => {
+      // Cap the canvas redraw at ~30 fps. The walk tweens still advance at real
+      // speed (gsap time is wall-clock, unaffected by this gate) — only the
+      // raster work is halved. Lighthouse measured single frames of 70–270 ms
+      // from this loop under 4x CPU throttle (105 sprites redrawn every rAF on
+      // a large canvas), which is exactly what janks low-end phones in reality.
+      if (time - lastFrameTime < 0.033) return;
+      lastFrameTime = time;
       if (!canvas) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
-      ctx.scale(devicePixelRatio, devicePixelRatio);
+      ctx.scale(backingDpr(), backingDpr());
 
       crowd.forEach((peep) => {
         peep.render(ctx);
@@ -243,8 +283,8 @@ const CrowdCanvas = ({ src, rows = 15, cols = 7 }: CrowdCanvasProps) => {
       if (!canvas) return;
       stage.width = canvas.clientWidth;
       stage.height = canvas.clientHeight;
-      canvas.width = stage.width * devicePixelRatio;
-      canvas.height = stage.height * devicePixelRatio;
+      canvas.width = stage.width * backingDpr();
+      canvas.height = stage.height * backingDpr();
 
       crowd.forEach((peep) => {
         peep.walk.kill();
@@ -259,22 +299,98 @@ const CrowdCanvas = ({ src, rows = 15, cols = 7 }: CrowdCanvasProps) => {
 
     const init = () => {
       createPeeps();
-      resize();
-      gsap.ticker.add(render);
+      // Split setup across frames: peep records are cheap, but merging the
+      // first raster into this task measured a 176 ms long task (>50 ms =
+      // blocking) under Lighthouse's 4x CPU throttle. Each remaining piece
+      // then runs in its own task.
+      requestAnimationFrame(() => {
+        if (!canvas.isConnected) return; // unmounted before this frame
+        resize();
+        gsap.ticker.add(render);
+      });
     };
 
-    img.onload = init;
-    img.src = config.src;
+    const setSource = (
+      source: CanvasImageSource,
+      width: number,
+      height: number,
+    ) => {
+      peepSource = source;
+      sourceWidth = width;
+      sourceHeight = height;
+      init();
+    };
+
+    // Last-resort path (no Worker support, or the worker failed): load through
+    // <img> and decode on this thread. Modern browsers never take it.
+    const decodeOnMainThread = () => {
+      img.onload = () => {
+        if (typeof createImageBitmap === "function") {
+          createImageBitmap(img).then(
+            (bitmap) => setSource(bitmap, bitmap.width, bitmap.height),
+            () => setSource(img, img.naturalWidth, img.naturalHeight),
+          );
+        } else {
+          setSource(img, img.naturalWidth, img.naturalHeight);
+        }
+      };
+      img.src = config.src;
+    };
+
+    // Fetch + decode the 3600x2268 sprite in a Web Worker (production). The
+    // decode alone measured ~185 ms of MAIN-thread time at Lighthouse's 4x
+    // CPU throttle — the single largest long task at load (createImageBitmap
+    // on an <img> still lands on the UI thread in Chrome). The worker returns
+    // a zero-copy ImageBitmap via transfer. It is a real same-origin chunk
+    // because production CSP has no `blob:` allowance (next.config.mjs).
+    // `next dev`'s webpack runtime 404s worker chunks (next 14.2.35, observed
+    // 2026-10-02), so dev takes the main-thread path — perf doesn't matter
+    // there, and the certified path is the production one.
+    if (process.env.NODE_ENV === "production") {
+      try {
+        const worker = new Worker(
+          new URL("./skiper39.decode.worker.ts", import.meta.url),
+        );
+        decodeWorker = worker;
+        worker.onmessage = (
+          e: MessageEvent<{ ok: boolean; bitmap?: ImageBitmap }>,
+        ) => {
+          worker.terminate();
+          decodeWorker = null;
+          if (e.data.ok && e.data.bitmap) {
+            setSource(e.data.bitmap, e.data.bitmap.width, e.data.bitmap.height);
+          } else {
+            decodeOnMainThread();
+          }
+        };
+        worker.onerror = () => {
+          worker.terminate();
+          decodeWorker = null;
+          decodeOnMainThread();
+        };
+        worker.postMessage({ src: config.src });
+      } catch {
+        decodeOnMainThread();
+      }
+    } else {
+      decodeOnMainThread();
+    }
 
     const handleResize = () => resize();
     window.addEventListener("resize", handleResize);
 
     return () => {
+      initToken += 1; // abort any queued walker batches
+      decodeWorker?.terminate();
+      decodeWorker = null;
       window.removeEventListener("resize", handleResize);
       gsap.ticker.remove(render);
       crowd.forEach((peep) => {
         if (peep.walk) peep.walk.kill();
       });
+      if (typeof ImageBitmap !== "undefined" && peepSource instanceof ImageBitmap) {
+        peepSource.close();
+      }
     };
   }, []);
   return (

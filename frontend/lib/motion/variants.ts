@@ -21,6 +21,23 @@ export const slideUp: Variants = {
   },
 };
 
+/**
+ * slideUpVisible — the same slide-up, but the hidden state keeps opacity 1:
+ * the server HTML paints the content immediately (the animation only moves it),
+ * so above-the-fold hero content is never held invisible until hydration.
+ * Lighthouse measured the fade-from-invisible variant as LCP 2.7s (the element
+ * only "painted" once React took over); with this recipe it paints at FCP.
+ * Use it for the LCP-critical hero — not for content that should stay hidden.
+ */
+export const slideUpVisible: Variants = {
+  hidden: { opacity: 1, y: 60 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: EASE_OUT },
+  },
+};
+
 export const slideDown: Variants = {
   hidden: { opacity: 0, y: -200 },
   visible: {

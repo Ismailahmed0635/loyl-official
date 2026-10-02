@@ -3,6 +3,7 @@ import { apiError, apiSuccess } from '@/backend/api/response';
 import { withAdmin, RouteContext } from '@/backend/api/handler';
 import { adminMerchantActionSchema } from '@/backend/validation/schemas';
 import { applySubscriptionAction } from '@/backend/admin';
+import { merchantActionName, recordAdminAction } from '@/backend/adminAudit';
 import { db } from '@/backend/db';
 
 const MERCHANT_ROW_SELECT = {
@@ -18,7 +19,7 @@ const MERCHANT_ROW_SELECT = {
 
 // PATCH /api/admin/merchants/[id] — one management action per request:
 // activate (ACTIVE +30d) | expire | revoke | suspend (soft delete) | restore.
-export const PATCH = withAdmin(async (req: NextRequest, _session, ctx: RouteContext) => {
+export const PATCH = withAdmin(async (req: NextRequest, session, ctx: RouteContext) => {
   let body: unknown = null;
   try {
     body = await req.json();
@@ -32,7 +33,7 @@ export const PATCH = withAdmin(async (req: NextRequest, _session, ctx: RouteCont
     return apiError(issue, 'VALIDATION_ERROR', 422);
   }
 
-  const id = ctx.params.id;
+  const { id } = await ctx.params;
   if (!id) {
     return apiError('Merchant id is required', 'VALIDATION_ERROR', 422);
   }
@@ -42,10 +43,28 @@ export const PATCH = withAdmin(async (req: NextRequest, _session, ctx: RouteCont
     return apiError('Merchant not found', 'MERCHANT_NOT_FOUND', 404);
   }
 
-  const merchant = await db.merchant.update({
-    where: { id },
-    data: applySubscriptionAction(parsed.data.action),
-    select: MERCHANT_ROW_SELECT,
+  // RT-02: the audit row commits with the state change (one transaction).
+  const merchant = await db.$transaction(async (tx) => {
+    const updated = await tx.merchant.update({
+      where: { id },
+      data: applySubscriptionAction(parsed.data.action),
+      select: MERCHANT_ROW_SELECT,
+    });
+    await recordAdminAction(
+      {
+        action: merchantActionName(parsed.data.action),
+        targetType: 'MERCHANT',
+        targetId: id,
+        actorId: session.userId,
+        detail: {
+          merchantId: id,
+          merchantAction: parsed.data.action,
+          subscriptionStatus: updated.subscriptionStatus,
+        },
+      },
+      tx
+    );
+    return updated;
   });
 
   return apiSuccess({ merchant: { ...merchant, suspended: !!merchant.deletedAt } });

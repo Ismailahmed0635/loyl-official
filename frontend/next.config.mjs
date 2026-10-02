@@ -9,9 +9,7 @@ const nextConfig = {
   // The Next app lives in frontend/ but imports backend/ + node_modules from the
   // repo root, so trace from the repo root or the serverless bundle misses them
   // (notably the Prisma query engine).
-  experimental: {
-    outputFileTracingRoot: path.join(__dirname, ".."),
-  },
+  outputFileTracingRoot: path.join(__dirname, ".."),
   images: {
     remotePatterns: [
       {

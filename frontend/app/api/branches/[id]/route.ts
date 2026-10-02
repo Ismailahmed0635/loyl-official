@@ -8,7 +8,7 @@ import type { Prisma } from '@prisma/client';
 // PATCH /api/branches/[id] — Updates a branch
 export const PATCH = withMerchant(async (req: NextRequest, session, merchant, { params }) => {
   try {
-    const id = params?.id;
+    const { id } = await params;
     if (!id) return apiError('Missing branch id', 'BAD_REQUEST', 400);
 
     // T-01: malformed JSON is a 422 (Zod rejects the null), never a 500.
@@ -42,7 +42,7 @@ export const PATCH = withMerchant(async (req: NextRequest, session, merchant, { 
 // DELETE /api/branches/[id] — Soft-deletes a branch (deletedAt set)
 export const DELETE = withMerchant(async (req: NextRequest, session, merchant, { params }) => {
   try {
-    const id = params?.id;
+    const { id } = await params;
     if (!id) return apiError('Missing branch id', 'BAD_REQUEST', 400);
 
     const existing = await db.branch.findFirst({

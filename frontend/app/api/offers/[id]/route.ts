@@ -19,7 +19,7 @@ const scratchItemsInclude = { scratchItems: { orderBy: { sortOrder: 'asc' as con
 // the scratch reward rows when the offer is a scratch card.
 export const GET = withMerchant(async (req: NextRequest, session, merchant, { params }) => {
   try {
-    const id = params?.id;
+    const { id } = await params;
     if (!id) return apiError('Missing offer id', 'BAD_REQUEST', 400);
 
     const offer = await db.offer.findFirst({
@@ -41,7 +41,7 @@ export const GET = withMerchant(async (req: NextRequest, session, merchant, { pa
 // itself is immutable after creation.
 export const PATCH = withMerchant(async (req: NextRequest, session, merchant, { params }) => {
   try {
-    const id = params?.id;
+    const { id } = await params;
     if (!id) return apiError('Missing offer id', 'BAD_REQUEST', 400);
 
     // T-01: malformed JSON is a 422 (schemas below reject the null), never a 500.
@@ -192,7 +192,7 @@ function nextLabels(existing: { scratchItems: { label: string }[] }): string[] {
 // DELETE /api/offers/[id] — Soft-deletes an offer (deletedAt set)
 export const DELETE = withMerchant(async (req: NextRequest, session, merchant, { params }) => {
   try {
-    const id = params?.id;
+    const { id } = await params;
     if (!id) return apiError('Missing offer id', 'BAD_REQUEST', 400);
 
     const existing = await db.offer.findFirst({

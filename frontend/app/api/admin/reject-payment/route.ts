@@ -3,13 +3,14 @@ import { apiError, apiSuccess } from '@/backend/api/response';
 import { withAdmin } from '@/backend/api/handler';
 import { paymentActionSchema } from '@/backend/validation/schemas';
 import { deleteScreenshot } from '@/backend/billing';
+import { recordAdminAction } from '@/backend/adminAudit';
 import { db } from '@/backend/db';
 
 // POST /api/admin/reject-payment — marks the request REJECTED (PENDING only);
 // the merchant's subscription is left untouched. Like approval, the stored
 // screenshot is deleted the moment the decision is made (terminal state —
 // keeping rejected screenshots would just waste storage).
-export const POST = withAdmin(async (req: NextRequest) => {
+export const POST = withAdmin(async (req: NextRequest, session) => {
   let body: unknown = null;
   try {
     body = await req.json();
@@ -54,6 +55,21 @@ export const POST = withAdmin(async (req: NextRequest) => {
         data: { screenshotPath: null },
       });
     }
+    // RT-02: audit row commits with the rejection — same transaction.
+    await recordAdminAction(
+      {
+        action: 'REJECT_PAYMENT',
+        targetType: 'PAYMENT_REQUEST',
+        targetId: payment.id,
+        actorId: session.userId,
+        detail: {
+          merchantId: payment.merchantId,
+          requestedTier: payment.requestedTier,
+          amount: Number(payment.amount),
+        },
+      },
+      tx
+    );
     return { ...payment, screenshotPath: null };
   });
 

@@ -84,8 +84,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Headlines: Plus Jakarta Sans · body & data: Inter (Sovereign Green).
-            Non-blocking via FontLoader (client component — server components
-            cannot take the onLoad swap handler). */}
+            Non-blocking via FontLoader: an inline script creates the link
+            during head parse so the print→all swap is armed before the CSS
+            can load (a React onLoad only attaches at hydration and was losing
+            that race, leaving the site on fallback fonts — see FontLoader). */}
         <FontLoader />
       </head>
       <body className="min-h-screen bg-surface text-on-surface antialiased">

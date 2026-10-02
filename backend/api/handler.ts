@@ -8,9 +8,10 @@ import { apiError } from './response';
 import { adminPasswordConfigured } from '@/backend/admin';
 import { authenticateDeviceApproval, DEVICE_PROOF_HEADER } from '@/backend/devices';
 
-/** Next.js App Router dynamic-segment context ([id] / [offerId] routes). */
+/** Next.js App Router dynamic-segment context ([id] / [offerId] routes).
+ *  Next 15 resolves `params` asynchronously — always `await ctx.params`. */
 export interface RouteContext {
-  params: { id?: string; offerId?: string };
+  params: Promise<{ id?: string; offerId?: string }>;
 }
 
 export type AuthenticatedHandler = (
@@ -58,7 +59,7 @@ export function getRequestId(req: NextRequest): string {
 }
 
 export function withAuth(handler: AuthenticatedHandler) {
-  return async (req: NextRequest, ctx: RouteContext = { params: {} }): Promise<NextResponse> => {
+  return async (req: NextRequest, ctx: RouteContext): Promise<NextResponse> => {
     const requestId = getRequestId(req);
     try {
       const session = await getSession();
@@ -164,14 +165,15 @@ export function withMerchant(handler: MerchantHandler) {
  * app-only — a merchant web session has no device key, so it is rejected with
  * 403 `APP_APPROVAL_REQUIRED`.
  *
- * The signature is bound to `ctx.params.id` (the ScanRequest being approved),
+ * The signature is bound to `ctx.params`'s `id` (the ScanRequest being approved),
  * so a proof harvested for one check-in cannot be pointed at another.
  */
 export function withMerchantApp(handler: MerchantAppHandler) {
   return withMerchant(async (req, session, merchant, ctx) => {
+    const { id } = await ctx.params;
     const auth = await authenticateDeviceApproval({
       merchantId: merchant.id,
-      targetId: ctx.params?.id ?? '',
+      targetId: id ?? '',
       header: req.headers.get(DEVICE_PROOF_HEADER),
     });
     if (!auth.ok) {

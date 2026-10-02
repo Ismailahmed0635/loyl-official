@@ -246,11 +246,63 @@ async function main() {
   const webApprove = await call(`/api/merchant/scan-requests/${pendingA?.id}`, { cookie: m1 });
   check('Web session approval -> 403 APP_APPROVAL_REQUIRED', webApprove.status === 403 && webApprove.json?.error?.code === 'APP_APPROVAL_REQUIRED', `status ${webApprove.status}, code ${webApprove.json?.error?.code}`);
 
+  // --- RT-03: pre-seed an approval burst so the next real approval trips it.
+  // Rows belong to THIS merchant only (fresh shop per run), status APPROVED
+  // with decidedAt=now — the velocity probe reads them, nothing else does.
+  const { PrismaClient } = await import('@prisma/client');
+  const db = new PrismaClient();
+  const m1id = merchantIdByLabel.get(BIZ_NAME);
+  const BURST_SEED_COUNT = 10; // == APPROVAL_BURST_THRESHOLD
+  await db.scanRequest.createMany({
+    data: Array.from({ length: BURST_SEED_COUNT }, (_, i) => ({
+      merchantId: m1id,
+      offerId: offerA.id,
+      customerPhone: `0199${String(10000000 + i)}`,
+      customerName: `Burst Seed ${i}`,
+      status: 'APPROVED',
+      decidedAt: new Date(),
+    })),
+  });
+
   const approve1 = await approveCheckIn({ cookie: m1, signer: dev1.signer, deviceId: dev1.deviceId, requestId: pendingA?.id });
   check('App-signed approval stamps the card (1 of 2)', approve1.status === 200 && approve1.json?.data?.card?.stampsCollected === 1, `status ${approve1.status} ${JSON.stringify(approve1.json)}`);
   check('Approval records the signing device', approve1.json?.data?.request?.approvedByDeviceId === dev1.deviceId, JSON.stringify(approve1.json?.data?.request || {}));
   check('Card not complete (1 of 2)', approve1.json?.data?.card?.complete === false);
   check('Cooldown starts at approval (nextScanAt set)', typeof approve1.json?.data?.card?.nextScanAt === 'string', `got ${approve1.json?.data?.card?.nextScanAt}`);
+
+  // --- RT-03: the burst must raise exactly one alert, surfaced to the merchant
+  const burstAlerts = await db.securityAlert.findMany({
+    where: { merchantId: m1id, kind: 'APPROVAL_BURST' },
+  });
+  check(
+    'RT-03: 10+ approvals in the window -> exactly one APPROVAL_BURST alert',
+    burstAlerts.length === 1 && (burstAlerts[0].count ?? 0) >= BURST_SEED_COUNT && burstAlerts[0].deviceId === dev1.deviceId,
+    `rows ${burstAlerts.length}, count ${burstAlerts[0]?.count}, device ${burstAlerts[0]?.deviceId}`
+  );
+  check(
+    'RT-03: alert message is PII-free (count + window only)',
+    /\d+ stamp approvals in \d+ minutes/.test(burstAlerts[0]?.message ?? '') &&
+      !/\d{11}/.test(burstAlerts[0]?.message ?? ''),
+    burstAlerts[0]?.message ?? 'missing'
+  );
+
+  const alertFeed = await call('/api/merchant/alerts', { method: 'GET', cookie: m1 });
+  const feedRows = alertFeed.json?.data?.alerts || [];
+  check(
+    'RT-03: GET /api/merchant/alerts exposes burst + device-registration notices',
+    alertFeed.status === 200 &&
+      feedRows.some((a) => a.kind === 'APPROVAL_BURST') &&
+      feedRows.some((a) => a.kind === 'DEVICE_REGISTERED'),
+    `status ${alertFeed.status}, kinds ${JSON.stringify(feedRows.map((a) => a.kind))}`
+  );
+  const alertFeedOther = await call('/api/merchant/alerts', { method: 'GET', cookie: m2 });
+  check(
+    'RT-03: alerts are tenant-scoped (merchant 2 sees none of merchant 1\'s)',
+    alertFeedOther.status === 200 &&
+      !(alertFeedOther.json?.data?.alerts || []).some((a) => a.kind === 'APPROVAL_BURST'),
+    `status ${alertFeedOther.status}, rows ${(alertFeedOther.json?.data?.alerts || []).length}`
+  );
+  await db.$disconnect();
 
   // --- Cooldown (TEST.md §4) -------------------------------------------------
   const cooldown = await call('/api/customer/scan', { cookie: c1, body: { offerId: offerA.id, ...NEAR } });

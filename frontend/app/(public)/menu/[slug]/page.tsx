@@ -72,9 +72,10 @@ const loadMenu = cache(async (rawSlug: string) => {
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const menu = await loadMenu(params.slug);
+  const { slug } = await params;
+  const menu = await loadMenu(slug);
   if (!menu) return { title: 'Menu not found' };
 
   const description = `Menu for ${menu.merchant.businessName}${
@@ -87,15 +88,16 @@ export async function generateMetadata({
     ...pageMetadata({
       title: `${menu.title} — ${menu.merchant.businessName}`,
       description,
-      path: `/menu/${params.slug}`,
+      path: `/menu/${slug}`,
       robots: 'index',
     }),
     twitter: { card: 'summary', title: menu.title, description },
   };
 }
 
-export default async function PublicMenuPage({ params }: { params: { slug: string } }) {
-  const menu = await loadMenu(params.slug);
+export default async function PublicMenuPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const menu = await loadMenu(slug);
   if (!menu) notFound();
 
   const background = normalizeHexColor(menu.backgroundHex) ?? MENU_DEFAULT_BACKGROUND;

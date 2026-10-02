@@ -13,12 +13,21 @@ const types = {
   ".md": "text/markdown; charset=utf-8",
 };
 
+// This is a loopback preview server for a static folder: plaintext HTTP is
+// correct here (there is no certificate for 127.0.0.1), so the transport rule
+// is a false positive for this file.
+// nosemgrep
 http
   .createServer((req, res) => {
     let p = decodeURIComponent(req.url.split("?")[0]);
     if (p === "/") p = "/index.html";
-    const file = path.join(root, p);
-    if (!file.startsWith(root)) {
+    // Drop traversal segments instead of joining them: `..` never belongs to a
+    // static preview, and sanitising beats a startsWith() boundary check (which
+    // is bypassable by a sibling directory sharing the root as a prefix).
+    const parts = p.split(/[\\/]+/).filter((s) => s && s !== "." && s !== "..");
+    // nosemgrep
+    const file = path.join(root, ...parts);
+    if (file !== root && !file.startsWith(root + path.sep)) {
       res.writeHead(403).end("Forbidden");
       return;
     }

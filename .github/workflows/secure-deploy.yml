@@ -20,9 +20,9 @@ jobs:
       contents: read
       id-token: write # OIDC only, no stored keys
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { persist-credentials: false }
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 20, cache: npm }
       # Batch 1 guard: fail the build when a real secret pattern appears in a
       # git-tracked file. Local .env files are gitignored, so they never trip this.
@@ -61,12 +61,12 @@ jobs:
       contents: read
       id-token: write # short-lived OIDC token (~1h), no permanent SA key
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { persist-credentials: false }
       # GCP auth via Workload Identity Federation — no JSON key file.
       # Setup once: create WIF pool + provider for this repo, then replace IDs below.
       - id: gcp-auth
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider
           service_account: deploy@loyl-df23d.iam.gserviceaccount.com
@@ -74,7 +74,7 @@ jobs:
       # Full Batch 1 set: Terraform in infra/secrets/main.tf owns these 8 names.
       # NEXT_PUBLIC_* keys are public by design and stay as build args, not secrets.
       - id: secrets
-        uses: google-github-actions/get-secretmanager-secrets@v2
+        uses: google-github-actions/get-secretmanager-secrets@2b5f97c5a4b9c105e64646762ad4fc3f5128e6f5 # v2
         with:
           secrets: |-
             DATABASE_URL:projects/loyl-df23d/secrets/DATABASE_URL/versions/latest

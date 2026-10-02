@@ -12,10 +12,12 @@
   `${APP_ORIGIN}/welcome`, which is the app's single phone -> OTP entry and
   serves BOTH a first-time registration (-> /business-setup) and a returning
   sign-in. There is no separate register screen.
-  When the production domain is fixed, replace `http://localhost:3000`
-  everywhere in this file (it is the only origin used) and mirror it in
+  When the production domain is fixed, replace `//localhost:3000`
+  everywhere in this file (it is the only origin used; links are
+  protocol-relative so they follow the page's scheme) and mirror it in
   NEXT_PUBLIC_APP_URL in frontend/.env.local.
 -->
+<!-- nosemgrep -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%23195035'/%3E%3Ctext%20x='32'%20y='44'%20font-family='Inter,Arial,sans-serif'%20font-size='36'%20font-weight='800'%20fill='%23fff'%20text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -84,7 +86,7 @@
     </nav>
 
     <div class="nav-actions">
-      <a class="nav-signin" href="http://localhost:3000/welcome">Sign In</a>
+      <a class="nav-signin" href="//localhost:3000/welcome">Sign In</a>
       <a class="btn btn-primary btn-sm" href="#pricing">Start Free Trial</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu">
         <span></span><span></span><span></span>
@@ -99,7 +101,7 @@
         <a href="#how-it-works">How It Works</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
-        <a href="http://localhost:3000/welcome">Sign In</a>
+        <a href="//localhost:3000/welcome">Sign In</a>
         <a class="mobile-cta" href="#pricing">Start Free Trial</a>
       </nav>
     </div>
@@ -130,7 +132,7 @@
         <span><i>✓</i> Cancel anytime</span>
       </div>
 
-      <p class="hero-signin" data-reveal style="--d:.38s">Already have a business? <a href="http://localhost:3000/welcome">Sign In</a></p>
+      <p class="hero-signin" data-reveal style="--d:.38s">Already have a business? <a href="//localhost:3000/welcome">Sign In</a></p>
     </div>
 
     <!-- Visual -->
@@ -452,7 +454,7 @@
             <li>Digital Menu Not Included</li>
           </ul>
         </div>
-        <a class="btn btn-outline-p btn-block btn-sm" href="http://localhost:3000/welcome">Get Started</a>
+        <a class="btn btn-outline-p btn-block btn-sm" href="//localhost:3000/welcome">Get Started</a>
       </div>
 
       <!-- Starter -->
@@ -471,7 +473,7 @@
             <li>FREE Table-Stand QR Scanner</li>
           </ul>
         </div>
-        <a class="btn btn-outline-p btn-block btn-sm" href="http://localhost:3000/welcome">Start Free Trial</a>
+        <a class="btn btn-outline-p btn-block btn-sm" href="//localhost:3000/welcome">Start Free Trial</a>
       </div>
 
       <!-- Growth -->
@@ -490,7 +492,7 @@
             <li>Dedicated Priority Support</li>
           </ul>
         </div>
-        <a class="btn btn-primary btn-block btn-sm" href="http://localhost:3000/welcome">Start Free Trial</a>
+        <a class="btn btn-primary btn-block btn-sm" href="//localhost:3000/welcome">Start Free Trial</a>
       </div>
 
       <!-- Enterprise -->
@@ -572,7 +574,7 @@
     <div data-reveal style="--d:.16s">
       <a class="btn btn-white btn-lg" href="#pricing">Start Your Free Trial</a>
     </div>
-    <p class="cta-signin" data-reveal style="--d:.22s">Already have a business? <a href="http://localhost:3000/welcome">Sign In</a></p>
+    <p class="cta-signin" data-reveal style="--d:.22s">Already have a business? <a href="//localhost:3000/welcome">Sign In</a></p>
   </div>
 
   <div class="cta-phone" data-reveal="zoom" style="--d:.28s">

@@ -20,9 +20,9 @@ jobs:
       JWT_SECRET: ci-only-secret
       ADMIN_PASSWORD: ci-only-admin
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 20, cache: npm }
       - run: npm ci
       - run: npm run db:push
@@ -33,6 +33,12 @@ jobs:
       - run: |
           (npx next dev frontend -p 3111 &) && sleep 25
           node scripts/phase1-smoke.mjs http://localhost:3111
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
       - run: npm audit --audit-level=high
-      - run: npx semgrep --config=auto --error
+      # The npm package called `semgrep` is a 2020 placeholder (v0.0.1, no bin),
+      # so `npx semgrep` has never been able to run — install the real thing.
+      - name: semgrep (pip, not npx)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/semgrep-venv"
+          "$RUNNER_TEMP/semgrep-venv/bin/pip" install --quiet semgrep
+          "$RUNNER_TEMP/semgrep-venv/bin/semgrep" scan --config=auto --error .

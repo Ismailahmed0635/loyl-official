@@ -292,8 +292,14 @@ append-only: never delete history, only add.
   ≤ viewport at 768/900 too (the old sideways scroll is gone).
   (2) `app/(auth)/otp/page.tsx` "Back to Phone Number" now calls `router.push('/welcome')`
   instead of `router.back()`, so a deep link or refresh no longer loses the phone number.
-  Left open on purpose: there is **no `favicon.ico`** (a 404 in every page's console) and no
-  support/contact route — `app/not-found.tsx` therefore links only to routes that exist.
+  The favicon 404 is **fixed**: `frontend/app/favicon.ico` now exists (Next serves it at
+  `/favicon.ico`; verified 200 `image/x-icon` on a production build). It is generated, not
+  hand-maintained — `node scripts/favicon-gen.mjs` rasterises `frontend/public/icon.svg`
+  (the single icon source of truth) through headless Chrome at 16/32/48/64/256px and packs
+  the PNGs into a multi-resolution ICO. Regenerate it whenever `icon.svg` changes; the
+  SVG-linked `<link rel="icon">` stays the primary icon for modern browsers.
+  Left open on purpose: there is still no support/contact route — `app/not-found.tsx`
+  therefore links only to routes that exist.
 
 ---
 

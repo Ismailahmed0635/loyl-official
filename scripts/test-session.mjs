@@ -9,8 +9,11 @@
  * contract (guards, setup, approval, devices) exactly as a real session
  * would — the signature is verified by the same `verifySessionToken`.
  *
- * DEV ONLY: reads frontend/.env.local. Never import into app code, never run
- * against a reachable host.
+ * DEV ONLY: reads frontend/.env.local, with the shell's own environment
+ * winning over it (Next gives already-set env vars the same precedence, so
+ * the secret we sign with is always the one the server verifies — CI has no
+ * .env.local at all, it exports JWT_SECRET directly). Never import into app
+ * code, never run against a reachable host.
  */
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -21,11 +24,20 @@ import { randomUUID } from 'node:crypto';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 function devEnv() {
-  const raw = readFileSync(join(ROOT, 'frontend', '.env.local'), 'utf8');
   const out = {};
-  for (const line of raw.split('\n')) {
+  let raw = null;
+  try {
+    raw = readFileSync(join(ROOT, 'frontend', '.env.local'), 'utf8');
+  } catch (err) {
+    // CI has no .env.local (gitignored) — process.env below is the whole env.
+    if (err?.code !== 'ENOENT') throw err;
+  }
+  for (const line of raw ? raw.split('\n') : []) {
     const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
     if (m) out[m[1]] = m[2].replace(/^"|"$/g, '');
+  }
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) out[key] = value;
   }
   return out;
 }
@@ -34,7 +46,11 @@ let SECRET = null;
 export function jwtSecret() {
   if (!SECRET) {
     SECRET = devEnv().JWT_SECRET;
-    if (!SECRET) throw new Error('test-session: JWT_SECRET missing from frontend/.env.local');
+    if (!SECRET) {
+      throw new Error(
+        'test-session: JWT_SECRET missing — set it in frontend/.env.local or export it (CI does)'
+      );
+    }
   }
   return new TextEncoder().encode(SECRET);
 }

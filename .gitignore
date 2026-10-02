@@ -39,3 +39,6 @@ npm-debug.log*
 
 # vercel CLI link state (project ref is local to this machine)
 .vercel/
+
+# deploy handoff state (holds credentials — resume instructions only)
+.deploy-state.md

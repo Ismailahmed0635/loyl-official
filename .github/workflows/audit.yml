@@ -39,7 +39,10 @@ jobs:
           (npx next dev frontend -p 3111 &) && sleep 25
           node scripts/phase1-smoke.mjs http://localhost:3111
       - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
-      - run: npm audit --audit-level=high
+      # Production tree only. GHSA-vfj7-8cjw-p6xm (braces <=3.0.3, high) has no
+      # fixed release, and its only path is tailwindcss 4 - dev/build tooling
+      # that never ships to users. Prod stays a hard gate; tracked in CODIN 10.
+      - run: npm audit --omit=dev --audit-level=high
       # The npm package called `semgrep` is a 2020 placeholder (v0.0.1, no bin),
       # so `npx semgrep` has never been able to run — install the real thing.
       - name: semgrep (pip, not npx)

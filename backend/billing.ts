@@ -36,9 +36,9 @@ export const SCREENSHOT_MIME_EXT: Record<string, string> = {
   'image/gif': '.gif',
 };
 
-/** Validity period granted per tier; FREE never expires. */
+/** Validity period granted per tier; FREE is a 3-day trial (never "no expiry"). */
 export const TIER_DURATION_DAYS: Record<SubscriptionTier, number | null> = {
-  FREE: null,
+  FREE: 3,
   MONTHLY: 30,
   YEARLY: 365,
   PREMIUM: 365,
@@ -46,7 +46,8 @@ export const TIER_DURATION_DAYS: Record<SubscriptionTier, number | null> = {
 
 /**
  * Merchant update payload that grants a tier (Phase 7 approval):
- * status ACTIVE + tier recorded + expiry per tier (null = never expires).
+ * status ACTIVE + tier recorded + expiry per tier (null = never expires —
+ * only reachable for a tier whose TIER_DURATION_DAYS entry is null).
  */
 export function subscriptionGrant(tier: SubscriptionTier, now: Date = new Date()) {
   const days = TIER_DURATION_DAYS[tier];

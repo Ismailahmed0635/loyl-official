@@ -114,7 +114,8 @@ apiError(message, code, status, extra?) // { success: false, error: { code, mess
 Error codes are **SCREAMING_SNAKE** and stable — the UI and smoke scripts match on
 them. Reuse the existing set (`COOLDOWN`, `CARD_COMPLETE`, `WRONG_OFFER_TYPE`,
 `OFFER_PAUSED`, `REWARD_NOT_READY`, `PAYMENT_NOT_PENDING`, `REQUEST_ALREADY_APPROVED`,
-`OFFER_TYPE_IMMUTABLE`, `LOCATION_OUT_OF_RANGE`, `NEED_LOCATION`, …) before adding
+`OFFER_TYPE_IMMUTABLE`, `LOCATION_OUT_OF_RANGE`, `NEED_LOCATION`,
+  `SUBSCRIPTION_EXPIRED`, `TIER_FEATURE_LOCKED`, …) before adding
 a new one. Never change a code's meaning; add a new code instead.
 
 **Auth**: sessions are a `jose` HS256 JWT in the `loyl_session` cookie. Session
@@ -268,7 +269,11 @@ append-only: never delete history, only add.
 - Supabase is a documented production target; local dev runs local PostgreSQL.
   Merchant auth is Firebase Email/Password (project `loyl-df23d`).
 - `BUILD.md`/`TEST.md` "lock dashboard features while subscription pending/expired"
-  is specified but not implemented.
+  is **implemented** (Phase 15, 2026-10-03) — but deliberately *not* as a page lock:
+  pages stay reachable, and what is gated is offer/menu creation plus the customer QR
+  path (`backend/subscription.ts`; FREE = 3-day trial, scratch cards only). Extending
+  it to `PENDING` is intentionally not done — approvals are manual, so a merchant
+  waiting on the admin must not be locked out.
 - Phase 9/10/11 were marked unverified (no shell when authored). They are now verified:
   `db:push` + `db:generate` applied, typecheck clean, 251/251 unit tests, `next build` OK, and
   all 8 smoke scripts pass **503/503** assertions against `next dev frontend -p 3111`. The

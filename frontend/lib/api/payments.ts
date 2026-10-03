@@ -76,6 +76,10 @@ export interface BillingResponse {
     status: 'PENDING' | 'ACTIVE' | 'EXPIRED';
     tier: BillingTier;
     expiresAt: string | null;
+    /** Always set by the API: the real end of access (free trial included). */
+    endsAt?: string;
+    /** Derived now-state: free trial vs paid vs past expiry. */
+    phase?: 'ACTIVE' | 'TRIAL' | 'EXPIRED';
   };
   pending: BillingRequest | null;
   requests: BillingRequest[];

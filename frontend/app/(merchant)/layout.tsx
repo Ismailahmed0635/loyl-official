@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Merchant } from '@prisma/client';
 import { MerchantNav } from '@/components/merchant/MerchantNav';
+import { SubscriptionBanner } from '@/components/merchant/SubscriptionBanner';
 import { getAuthMe } from '@/lib/api/client';
 
 /**
@@ -67,6 +68,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
     <div className="min-h-screen bg-brand-bg">
       <MerchantNav businessName={merchant?.businessName} logoUrl={merchant?.logoUrl} />
       <main className="max-w-md mx-auto md:max-w-2xl lg:max-w-6xl px-4 pt-6 pb-32 md:pb-16">
+        <SubscriptionBanner merchant={merchant} />
         {children}
       </main>
     </div>

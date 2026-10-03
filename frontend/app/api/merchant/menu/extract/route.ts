@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withMerchant } from '@/backend/api/handler';
 import { checkRateLimit, recordHit, EXTRACT_MERCHANT } from '@/backend/rateLimit';
+import { gateMenuWrite } from '@/backend/subscription';
 import {
   VisionError,
   VisionNotConfiguredError,
@@ -31,6 +32,11 @@ export const POST = withMerchant(async (_req: NextRequest, _session, merchant) =
     });
   }
   recordHit(`extract:${merchant.id}`, EXTRACT_MERCHANT);
+
+  // Subscription gate: extraction is part of building the menu (and costs
+  // model spend, so it must not run for a tier that cannot save the result).
+  const sub = gateMenuWrite(merchant);
+  if (!sub.ok) return apiError(sub.message, sub.code, 403);
 
   try {
     const menu = await db.digitalMenu.findUnique({

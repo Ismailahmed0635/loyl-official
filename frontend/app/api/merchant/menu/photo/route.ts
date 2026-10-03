@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withMerchant } from '@/backend/api/handler';
 import { checkRateLimit, recordHit, MUTATION_MERCHANT } from '@/backend/rateLimit';
+import { gateMenuWrite } from '@/backend/subscription';
 import {
   MENU_DEFAULT_BACKGROUND,
   MenuUploadError,
@@ -54,6 +55,10 @@ export const POST = withMerchant(async (req: NextRequest, _session, merchant) =>
     });
   }
   recordHit(`menu-photo:${merchant.id}`, MUTATION_MERCHANT);
+
+  // Subscription gate: uploading is part of building the menu.
+  const sub = gateMenuWrite(merchant);
+  if (!sub.ok) return apiError(sub.message, sub.code, 403);
 
   let form: FormData;
   try {

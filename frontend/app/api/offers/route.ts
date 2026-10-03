@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withMerchant } from '@/backend/api/handler';
 import { createOfferSchema } from '@/backend/validation/schemas';
+import { gateOfferCreate } from '@/backend/subscription';
 import { db } from '@/backend/db';
 
 /** Reward rows are always returned ordered so both UIs render deterministically. */
@@ -37,6 +38,10 @@ export const POST = withMerchant(async (req: NextRequest, session, merchant) => 
       return apiError(issue, 'VALIDATION_ERROR', 422);
     }
     const data = validation.data;
+
+    // Subscription gate: expired = no creation at all; free trial = scratch only.
+    const gate = gateOfferCreate(merchant, data.offerType);
+    if (!gate.ok) return apiError(gate.message, gate.code, 403);
 
     // Shared by every branch: the non-type-specific columns. Type-only columns
     // are set explicitly (or left null) below so a column can never carry a

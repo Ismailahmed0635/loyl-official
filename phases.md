@@ -507,6 +507,46 @@ register/log in with a real email on `/welcome` → dashboard.
 
 ---
 
+## Phase 15 — Subscription enforcement (free trial, expiry gates, 24h warning) | ✅ Done — verified 2026-10-03
+
+Supersedes the Phase 7 OPEN ITEM ("lock dashboard features when subscription
+pending/expired"): the owner's manual bKash/Nagad model means **pages are never
+locked** — enforcement is on *creation* and on the customer QR path.
+
+Policy (owner decision, 2026-10-03):
+- **FREE = 3-day trial**, and the only feature it may create is a **scratch card**
+  (stamp/dice offers and the digital menu are refused).
+- **Expired merchants keep every page**, but cannot create offers or a digital
+  menu, and their **QR codes stop working** (scan / scratch / dice / redeem).
+- **Renewing restores both instantly** — nothing is deleted.
+- **Everyone gets a warning 24h before expiry.**
+
+Files:
+- backend/subscription.ts                 — NEW pure module: accessEndsAt / subscriptionPhase / hoursUntilExpiry / withinExpiryWarning + gateOfferCreate / gateMenuWrite / gateCustomerAction
+- backend/subscription.test.ts            — NEW 16 unit tests (trial clock, phase flips, warning window, all three gates)
+- backend/billing.ts                      — TIER_DURATION_DAYS.FREE `null` → `3` (a FREE approval now grants +3 days)
+- frontend/app/api/offers/route.ts        — POST gate: expired → 403 SUBSCRIPTION_EXPIRED, trial + non-scratch → 403 TIER_FEATURE_LOCKED
+- frontend/app/api/merchant/menu/route.ts (+ photo, + extract) — PUT/POST gate: gateMenuWrite
+- frontend/app/api/customer/{scan,scratch,dice,redeem}/route.ts — gateCustomerAction after offer validity (redeem's merchant select gained the 3 subscription columns)
+- frontend/app/api/billing/route.ts       — subscription now also returns computed `endsAt` + `phase`
+- frontend/components/merchant/SubscriptionBanner.tsx — NEW: expired / 24h warning / trial countdown, mounted for every merchant page
+- frontend/app/(merchant)/layout.tsx      — renders the banner above page content
+- frontend/app/(merchant)/billing/page.tsx, frontend/lib/api/payments.ts — subLine reads `phase` (the stored status never flips on its own)
+- scripts/test-session.mjs                — NEW `grantActiveSubscription()` fixture (a fresh signup is a trial, so suites covering stamp/dice/menu grant a plan an admin approval would)
+- scripts/{phase2,phase3,phase4,offer-type,menu}-smoke.mjs — grant the fixture plan in the signup wrapper
+- scripts/phase7-smoke.mjs                — FREE approval now asserts a 3-day clock + `phase: TRIAL`, plus 3 new gate checks
+- scripts/phase3-smoke.mjs                — 4 new checks: expired → scan/offer-create refused, renewed → both work again
+
+Verified 2026-10-03: `npm run typecheck` clean, `npm test` **421/421** (27 files),
+all 9 smokes **561/561** on `next dev -p 3111` (phase1 25, phase2 83, phase3 86,
+phase4 57, phase5 69, phase7 56, phase8 32, offer-type 107, menu 46) +
+`storage-smoke` 14/14. **No schema change** — expiry lives in the existing
+`Merchant.subscriptionTier/subscriptionExpiresAt/createdAt`. Legacy rows created
+before this phase have `subscriptionExpiresAt = null` and therefore read as a
+trial that ended 3 days after sign-up (no production data exists yet).
+
+---
+
 ## Rules for Every Phase
 - Read brain.md before starting
 - Do NOT skip phases

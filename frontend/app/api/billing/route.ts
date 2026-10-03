@@ -1,6 +1,7 @@
 import type { PaymentRequest } from '@prisma/client';
 import { apiSuccess } from '@/backend/api/response';
 import { withMerchant } from '@/backend/api/handler';
+import { accessEndsAt, subscriptionPhase } from '@/backend/subscription';
 import { db } from '@/backend/db';
 
 /** Row shape sent to the merchant — storage paths never leave the server. */
@@ -25,6 +26,11 @@ export const GET = withMerchant(async (_req, _session, merchant) => {
       status: merchant.subscriptionStatus,
       tier: merchant.subscriptionTier,
       expiresAt: merchant.subscriptionExpiresAt,
+      // Derived, so the UI never has to re-implement the trial clock:
+      // endsAt is always a real date (free trial included), phase is
+      // ACTIVE / TRIAL / EXPIRED as of now.
+      endsAt: accessEndsAt(merchant),
+      phase: subscriptionPhase(merchant),
     },
     pending: pendingRow ? serialize(pendingRow) : null,
     requests: requests.map(serialize),

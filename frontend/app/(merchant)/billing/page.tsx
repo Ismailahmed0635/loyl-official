@@ -41,13 +41,17 @@ export default function BillingPage() {
 
   function subLine(): string {
     if (!sub) return '';
-    if (sub.status === 'PENDING') return 'Not active yet — request access below.';
-    if (sub.status === 'EXPIRED') {
-      return sub.expiresAt ? `Expired on ${isoDay(sub.expiresAt)}.` : 'Expired.';
+    const end = sub.endsAt || sub.expiresAt;
+    // Phase first: the stored status never flips on its own, so an expired
+    // plan would otherwise still read "Active until <date in the past>".
+    if (sub.phase === 'EXPIRED') return end ? `Expired on ${isoDay(end)}.` : 'Expired.';
+    if (sub.phase === 'TRIAL') {
+      return end
+        ? `Free trial — ends ${isoDay(end)} (scratch cards only).`
+        : 'Free trial (scratch cards only).';
     }
-    return sub.expiresAt
-      ? `Active until ${isoDay(sub.expiresAt)}.`
-      : 'Active — no expiry (free tier).';
+    if (sub.status === 'PENDING') return 'Not active yet — request access below.';
+    return end ? `Active until ${isoDay(end)}.` : 'Active — no expiry (free tier).';
   }
 
   return (

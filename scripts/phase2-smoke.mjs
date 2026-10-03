@@ -9,7 +9,7 @@
  * Usage: node scripts/phase2-smoke.mjs [baseUrl]
  */
 
-import { signUpMerchant } from './test-session.mjs';
+import { signUpMerchant, grantActiveSubscription } from './test-session.mjs';
 
 const BASE = process.argv[2] || 'http://localhost:3111';
 const RUN = Date.now().toString(36);
@@ -71,6 +71,9 @@ async function signUp(label, phone) {
   });
   check(`[${label}] business setup saved (200, ${merchant?.id || 'no-id'})`, !!merchant?.id);
   check(`[${label}] session cookie issued`, !!cookie);
+  // Fresh signups are on the free trial (scratch only) — this suite covers
+  // stamp offers, so grant the plan an admin approval would have granted.
+  await grantActiveSubscription(merchant.id);
   return { cookie, otpCookie: tempCookie };
 }
 

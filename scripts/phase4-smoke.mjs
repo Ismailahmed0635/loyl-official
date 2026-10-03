@@ -15,7 +15,7 @@
 
 const BASE = process.argv[2] || 'http://localhost:3111';
 import { registerDevice, approveCheckIn } from './device-approval.mjs';
-import { mintSession, signUpMerchant as signUpMerchantHelper, signInCustomer as signInCustomerHelper } from './test-session.mjs';
+import { mintSession, signUpMerchant as signUpMerchantHelper, signInCustomer as signInCustomerHelper, grantActiveSubscription } from './test-session.mjs';
 const RUN = Date.now().toString(36);
 
 const M_PHONE = '017' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
@@ -99,6 +99,9 @@ async function signUpMerchant(label, phone) {
   });
   check(`[${label}] merchant signed up (200)`, !!merchant?.id);
   merchantId = merchant?.id ?? null;
+  // Fresh signups are on the free trial (scratch only) — this suite builds
+  // stamp offers, so grant the plan an admin approval would have granted.
+  await grantActiveSubscription(merchant.id);
   return cookie;
 }
 

@@ -112,3 +112,50 @@ export async function signInCustomer(call, { name, phone }) {
   if (!cookie) throw new Error('signInCustomer: no session cookie');
   return { cookie, ...res.json.data };
 }
+
+/**
+ * Test fixture: put a merchant on an ACTIVE paid subscription.
+ *
+ * A fresh signup is on the free 3-day TRIAL (scratch cards only, menu locked,
+ * and after 3 days its QR codes die) — that is the product rule. The suites
+ * that exercise stamp/dice offers and the digital menu need a plan an admin
+ * would have granted, so they grant one here instead of through
+ * /billing + /api/admin/approve-payment (which would need admin credentials
+ * in every script). Setup only: nothing in the app is bypassed.
+ *
+ * DATABASE_URL comes from the shell, else the repo-root .env the Prisma CLI
+ * uses (frontend/.env.local never carries it).
+ */
+export async function grantActiveSubscription(merchantId, { tier = 'MONTHLY', days = 30 } = {}) {
+  if (!process.env.DATABASE_URL) {
+    let raw = null;
+    try {
+      raw = readFileSync(join(ROOT, '.env'), 'utf8');
+    } catch (err) {
+      if (err?.code !== 'ENOENT') throw err;
+    }
+    for (const line of raw ? raw.split('\n') : []) {
+      const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
+      if (m && m[1] === 'DATABASE_URL') {
+        process.env.DATABASE_URL = m[2].replace(/^"|"$/g, '');
+      }
+    }
+  }
+  if (!process.env.DATABASE_URL) {
+    throw new Error('grantActiveSubscription: DATABASE_URL missing (shell or repo-root .env)');
+  }
+  const { PrismaClient } = await import('@prisma/client');
+  const db = new PrismaClient();
+  try {
+    await db.merchant.update({
+      where: { id: merchantId },
+      data: {
+        subscriptionTier: tier,
+        subscriptionStatus: 'ACTIVE',
+        subscriptionExpiresAt: new Date(Date.now() + days * 86_400_000),
+      },
+    });
+  } finally {
+    await db.$disconnect();
+  }
+}

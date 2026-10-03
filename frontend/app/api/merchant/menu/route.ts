@@ -4,6 +4,7 @@ import { withMerchant } from '@/backend/api/handler';
 import { checkRateLimit, recordHit, MUTATION_MERCHANT } from '@/backend/rateLimit';
 import { saveMenuSchema } from '@/backend/validation/schemas';
 import { allocateSlug, menuInclude, serializeMenu, type MenuWithCategories } from '@/backend/menu';
+import { gateMenuWrite } from '@/backend/subscription';
 import { generateQrDataUrl, resolveRequestOrigin } from '@/lib/poster';
 import { db } from '@/backend/db';
 
@@ -61,6 +62,10 @@ export const PUT = withMerchant(async (req: NextRequest, _session, merchant) => 
     });
   }
   recordHit(`menu-save:${merchant.id}`, MUTATION_MERCHANT);
+
+  // Subscription gate: the digital menu card is paid, and expired = read-only.
+  const sub = gateMenuWrite(merchant);
+  if (!sub.ok) return apiError(sub.message, sub.code, 403);
 
   try {
     let body: unknown;

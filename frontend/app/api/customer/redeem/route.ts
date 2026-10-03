@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withCustomer } from '@/backend/api/handler';
 import { redeemSchema } from '@/backend/validation/schemas';
+import { gateCustomerAction } from '@/backend/subscription';
 import { buildCardState, findStampCard } from '@/backend/scan';
 import { recordActivity } from '@/backend/activity';
 import { db } from '@/backend/db';
@@ -23,11 +24,26 @@ export const POST = withCustomer(
 
     const offer = await db.offer.findFirst({
       where: { id: parsed.data.offerId, deletedAt: null },
-      include: { merchant: { select: { id: true, businessName: true, deletedAt: true } } },
+      include: {
+        merchant: {
+          select: {
+            id: true,
+            businessName: true,
+            deletedAt: true,
+            // Subscription gate needs these three columns only.
+            subscriptionTier: true,
+            subscriptionExpiresAt: true,
+            createdAt: true,
+          },
+        },
+      },
     });
     if (!offer || offer.merchant.deletedAt) {
       return apiError('This offer is no longer available', 'NOT_FOUND', 404);
     }
+    // Subscription gate (QR path): expired shop = code disabled until renewal.
+    const sub = gateCustomerAction(offer.merchant);
+    if (!sub.ok) return apiError(sub.message, sub.code, 403);
     if (offer.offerType !== 'STAMP') {
       return apiError(
         offer.offerType === 'DICE'

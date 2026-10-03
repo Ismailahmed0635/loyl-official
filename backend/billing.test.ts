@@ -28,7 +28,7 @@ function realBytes(sig: number[], total: number): Uint8Array {
 describe('Phase 7 tier grants', () => {
   const now = new Date('2026-09-24T00:00:00.000Z');
 
-  it('grants the right expiry per tier (30d / 365d / 365d / never)', () => {
+  it('grants the right expiry per tier (3d trial / 30d / 365d / 365d)', () => {
     const monthly = subscriptionGrant('MONTHLY', now);
     expect(monthly.subscriptionStatus).toBe('ACTIVE');
     expect(monthly.subscriptionTier).toBe('MONTHLY');
@@ -41,10 +41,11 @@ describe('Phase 7 tier grants', () => {
     expect(premium.subscriptionStatus).toBe('ACTIVE');
     expect(premium.subscriptionExpiresAt?.getTime()).toBe(now.getTime() + 365 * 86400000);
 
+    // FREE is a 3-day trial, never "no expiry" (owner decision 2026-10-03).
     const free = subscriptionGrant('FREE', now);
     expect(free.subscriptionStatus).toBe('ACTIVE');
     expect(free.subscriptionTier).toBe('FREE');
-    expect(free.subscriptionExpiresAt).toBeNull();
+    expect(free.subscriptionExpiresAt?.getTime()).toBe(now.getTime() + 3 * 86400000);
   });
 
   it('covers every tier in the duration map', () => {

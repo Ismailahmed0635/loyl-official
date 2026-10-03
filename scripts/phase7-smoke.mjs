@@ -482,30 +482,88 @@ async function main() {
     `status ${shotFreeRow.status}, code ${shotFreeRow.json?.error?.code}`
   );
 
-  // --- G. Approve FREE (defaults to requested tier, no expiry) ---------------
+  // --- G. Approve FREE (3-day trial tier — no payment required) --------------
   const approveFree = await call('/api/admin/approve-payment', {
     cookie: admin,
     body: { paymentRequestId: freeRow.id },
   });
+  const freeGrantedEnds = approveFree.json?.data?.merchant?.subscriptionExpiresAt;
+  const freeEndsIn = freeGrantedEnds
+    ? new Date(freeGrantedEnds).getTime() - Date.now()
+    : Number.NEGATIVE_INFINITY;
   check(
-    'Approve FREE request -> 200, tier FREE, ACTIVE, no expiry',
+    'Approve FREE request -> 200, tier FREE, ACTIVE, 3-day trial expiry',
     approveFree.status === 200 &&
       approveFree.json?.data?.payment?.status === 'APPROVED' &&
       approveFree.json?.data?.merchant?.subscriptionTier === 'FREE' &&
       approveFree.json?.data?.merchant?.subscriptionStatus === 'ACTIVE' &&
-      approveFree.json?.data?.merchant?.subscriptionExpiresAt === null,
+      freeEndsIn > 2 * DAY_MS &&
+      freeEndsIn <= 3 * DAY_MS + 60_000,
     `status ${approveFree.status}, ${JSON.stringify(approveFree.json?.data?.merchant)}`
   );
 
   const freeBilling = await call('/api/billing', { method: 'GET', cookie: mFree });
+  const freeSub = freeBilling.json?.data?.subscription;
+  const freeBillingEndsIn = freeSub?.endsAt ? new Date(freeSub.endsAt).getTime() - Date.now() : 0;
   check(
-    'FREE merchant sees ACTIVE/FREE with no expiry + approved history',
-    freeBilling.json?.data?.subscription?.status === 'ACTIVE' &&
-      freeBilling.json?.data?.subscription?.tier === 'FREE' &&
-      freeBilling.json?.data?.subscription?.expiresAt === null &&
+    'FREE merchant sees ACTIVE/FREE with a 3-day trial clock + approved history',
+    freeSub?.status === 'ACTIVE' &&
+      freeSub?.tier === 'FREE' &&
+      freeSub?.phase === 'TRIAL' &&
+      freeBillingEndsIn > 2 * DAY_MS &&
+      freeBillingEndsIn <= 3 * DAY_MS + 60_000 &&
       freeBilling.json?.data?.requests?.[0]?.status === 'APPROVED' &&
       freeBilling.json?.data?.pending === null,
-    JSON.stringify(freeBilling.json?.data?.subscription)
+    JSON.stringify(freeSub)
+  );
+
+  // --- G2. Subscription gates (the free trial's feature limits) --------------
+  // Trial = scratch cards only: stamp offers and the menu are refused.
+  const trialStamp = await call('/api/offers', {
+    cookie: mFree,
+    body: { title: 'Trial Stamp Card', rewardType: 'FREE_ITEM', requiredStamps: 5, durationDays: 30 },
+  });
+  check(
+    'Trial merchant creating a stamp offer -> 403 TIER_FEATURE_LOCKED',
+    trialStamp.status === 403 && trialStamp.json?.error?.code === 'TIER_FEATURE_LOCKED',
+    `status ${trialStamp.status}, code ${trialStamp.json?.error?.code}`
+  );
+
+  const trialScratch = await call('/api/offers', {
+    cookie: mFree,
+    body: {
+      offerType: 'SCRATCH',
+      title: 'Trial Scratch Card',
+      durationDays: 30,
+      scratchMode: 'FIXED',
+      items: ['Free coffee'],
+    },
+  });
+  check(
+    'Trial merchant creating a scratch offer -> 201 (the one feature it has)',
+    trialScratch.status === 201,
+    `status ${trialScratch.status}, code ${trialScratch.json?.error?.code}`
+  );
+
+  const trialMenu = await call('/api/merchant/menu', {
+    cookie: mFree,
+    method: 'PUT',
+    body: {
+      title: 'Trial Menu',
+      backgroundHex: '#FFF7ED',
+      publish: false,
+      categories: [
+        {
+          name: 'Coffee',
+          items: [{ name: 'Latte', description: '', price: '৳250', isAvailable: true }],
+        },
+      ],
+    },
+  });
+  check(
+    'Trial merchant saving a digital menu -> 403 TIER_FEATURE_LOCKED',
+    trialMenu.status === 403 && trialMenu.json?.error?.code === 'TIER_FEATURE_LOCKED',
+    `status ${trialMenu.status}, code ${trialMenu.json?.error?.code}`
   );
 
   // --- H. Paid submit WITH screenshot (file lands on disk) -------------------

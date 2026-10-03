@@ -15,7 +15,7 @@
  */
 
 import { registerDevice, approveCheckIn } from './device-approval.mjs';
-import { signUpMerchant as signUpMerchantHelper, signInCustomer as signInCustomerHelper } from './test-session.mjs';
+import { signUpMerchant as signUpMerchantHelper, signInCustomer as signInCustomerHelper, grantActiveSubscription } from './test-session.mjs';
 const RUN = Date.now().toString(36);
 
 const BASE = process.argv[2] || 'http://localhost:3111';
@@ -93,6 +93,9 @@ async function signUpMerchant(label, phone) {
   });
   check(`[${label}] merchant signed up (200)`, !!merchant?.id);
   merchantIdByLabel.set(label, merchant?.id ?? null);
+  // Fresh signups are on the free trial (scratch only) — this suite covers
+  // stamp and dice offers, so grant the plan an admin approval would have.
+  await grantActiveSubscription(merchant.id);
   return cookie;
 }
 

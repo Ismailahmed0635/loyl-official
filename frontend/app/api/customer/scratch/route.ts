@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withCustomer } from '@/backend/api/handler';
 import { scratchSchema } from '@/backend/validation/schemas';
+import { gateCustomerAction } from '@/backend/subscription';
 import { offerEnded, GEO_FENCE_RADIUS_M } from '@/backend/scan';
 import {
   buildScratchState,
@@ -42,6 +43,9 @@ export const POST = withCustomer(
     if (!offer || offer.merchant.deletedAt) {
       return apiError('This offer is no longer available', 'NOT_FOUND', 404);
     }
+    // Subscription gate (QR path): expired shop = code disabled until renewal.
+    const sub = gateCustomerAction(offer.merchant);
+    if (!sub.ok) return apiError(sub.message, sub.code, 403);
     if (offer.offerType !== 'SCRATCH') {
       return apiError(
         offer.offerType === 'DICE'

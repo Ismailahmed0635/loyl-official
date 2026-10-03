@@ -14,7 +14,7 @@
  */
 
 const BASE = process.argv[2] || 'http://localhost:3111';
-import { signUpMerchant as signUpMerchantHelper } from './test-session.mjs';
+import { signUpMerchant as signUpMerchantHelper, grantActiveSubscription } from './test-session.mjs';
 const RUN = Date.now().toString(36);
 
 /** 1x1 transparent PNG — small, valid, and recognised as image/png. */
@@ -92,6 +92,8 @@ async function signUpMerchant(label, phone) {
     category: 'Café & Bakery',
   });
   check(`[${label}] merchant signed up (200)`, !!merchant?.id);
+  // The digital menu card is a paid feature — put the fixture shop on a plan.
+  await grantActiveSubscription(merchant.id);
   return cookie;
 }
 

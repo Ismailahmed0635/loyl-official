@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withCustomer } from '@/backend/api/handler';
 import { scanSchema } from '@/backend/validation/schemas';
+import { gateCustomerAction } from '@/backend/subscription';
 import {
   buildCardState,
   findStampCard,
@@ -47,6 +48,10 @@ export const POST = withCustomer(
     if (!offer || offer.merchant.deletedAt) {
       return apiError('This offer is no longer available', 'NOT_FOUND', 404);
     }
+    // Subscription gate (QR path): an expired shop's code stops working
+    // until the owner renews — everything else on this route is unchanged.
+    const sub = gateCustomerAction(offer.merchant);
+    if (!sub.ok) return apiError(sub.message, sub.code, 403);
     if (offer.offerType !== 'STAMP') {
       return apiError(
         offer.offerType === 'DICE'

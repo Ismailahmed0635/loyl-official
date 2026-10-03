@@ -14,7 +14,7 @@
  * Usage: node scripts/phase3-smoke.mjs [baseUrl]
  */
 
-import { signUpMerchant as signUpMerchantHelper, signInCustomer as signInCustomerHelper } from './test-session.mjs';
+import { signUpMerchant as signUpMerchantHelper, signInCustomer as signInCustomerHelper, grantActiveSubscription } from './test-session.mjs';
 
 const BASE = process.argv[2] || 'http://localhost:3111';
 const RUN = Date.now().toString(36);
@@ -88,6 +88,9 @@ async function signUpMerchant(label, phone) {
   });
   check(`[${label}] business setup saved (200)`, !!merchant?.id);
   merchantIdByLabel.set(label, merchant?.id ?? null);
+  // Fresh signups are on the free trial (scratch only) — this suite covers
+  // stamp offers, so grant the plan an admin approval would have granted.
+  await grantActiveSubscription(merchant.id);
   return cookie;
 }
 
@@ -370,6 +373,64 @@ async function main() {
   check('Merchant 1 stats: customerCount=1 (only C1 scanned)', s.customerCount === 1, JSON.stringify(s));
   check('Merchant 1 stats: totalRedeemed=1, stampsCollected=0', s.totalRedeemed === 1 && s.stampsCollected === 0, JSON.stringify(s));
   check('Merchant 1 stats: offerCount=1, branchCount=1', s.offerCount === 1 && s.branchCount === 1, JSON.stringify(s));
+
+  // --- Subscription: expired = QR off, renewal = back on ----------------------
+  // The shop is on a paid plan (fixture). Only the clock changes: expire it,
+  // a brand-new customer is refused at the QR; renew it and both the scan and
+  // the merchant's own offer creation come back.
+  const subDb = new (await import('@prisma/client')).PrismaClient();
+  const m1SubId = merchantIdByLabel.get(BIZ_NAME);
+  const subDue = new Date(Date.now() - 60_000);
+  await subDb.merchant.update({ where: { id: m1SubId }, data: { subscriptionExpiresAt: subDue } });
+
+  const c3 = await signInCustomer(
+    'Customer 3',
+    '018' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0')
+  );
+  const expiredScan = await call('/api/customer/scan', {
+    cookie: c3,
+    body: { offerId: offerA.id, ...NEAR },
+  });
+  check(
+    'Expired shop -> QR scan refused 403 SUBSCRIPTION_EXPIRED',
+    expiredScan.status === 403 && expiredScan.json?.error?.code === 'SUBSCRIPTION_EXPIRED',
+    `status ${expiredScan.status}, code ${expiredScan.json?.error?.code}`
+  );
+
+  const expiredCreate = await call('/api/offers', {
+    cookie: m1,
+    body: { title: 'Should Not Exist', rewardType: 'FREE_ITEM', requiredStamps: 3, durationDays: 30 },
+  });
+  check(
+    'Expired shop -> cannot create an offer (403 SUBSCRIPTION_EXPIRED)',
+    expiredCreate.status === 403 && expiredCreate.json?.error?.code === 'SUBSCRIPTION_EXPIRED',
+    `status ${expiredCreate.status}, code ${expiredCreate.json?.error?.code}`
+  );
+
+  await subDb.merchant.update({
+    where: { id: m1SubId },
+    data: { subscriptionExpiresAt: new Date(Date.now() + 30 * 86_400_000) },
+  });
+  const renewedScan = await call('/api/customer/scan', {
+    cookie: c3,
+    body: { offerId: offerA.id, ...NEAR },
+  });
+  check(
+    'Renewed -> the same QR opens a check-in again (200)',
+    renewedScan.status === 200 && renewedScan.json?.data?.requested === true,
+    `status ${renewedScan.status} ${JSON.stringify(renewedScan.json)}`
+  );
+
+  const renewedCreate = await call('/api/offers', {
+    cookie: m1,
+    body: { title: 'Back After Renewal', rewardType: 'FREE_ITEM', requiredStamps: 3, durationDays: 30 },
+  });
+  check(
+    'Renewed -> offer creation works again (201)',
+    renewedCreate.status === 201,
+    `status ${renewedCreate.status}, code ${renewedCreate.json?.error?.code}`
+  );
+  await subDb.$disconnect();
 
   // --- Pages exist (phases.md Phase 3 files) ----------------------------------
   // /scan* is the public entry; every other customer page needs a session

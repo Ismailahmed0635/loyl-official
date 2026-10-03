@@ -21,7 +21,7 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { access, readdir } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -61,6 +61,33 @@ function loadEnvFile(url) {
 }
 loadEnvFile(new URL('../.env', import.meta.url));
 loadEnvFile(new URL('../frontend/.env.local', import.meta.url));
+
+// Same selection rule the server uses: Supabase once .env.local carries the
+// creds, the local `storage/` dir otherwise. The assertions below go through
+// this driver so they prove the object really is stored (and really is gone)
+// wherever the app put it — checking raw disk while the server writes to a
+// bucket would pass vacuously.
+const storage = await import('../backend/storage.ts');
+const shots = storage.resolveDriver(storage.BUCKET_PAYMENT_SCREENSHOTS, SCREENSHOT_DIR);
+
+/** Every key currently in the screenshot store, for the orphan-file check. */
+async function screenshotKeys() {
+  if (shots.kind === 'local') return (await readdir(SCREENSHOT_DIR).catch(() => [])).slice().sort();
+  const config = storage.supabaseStorageConfig();
+  if (!config) return [];
+  const res = await fetch(`${config.url}/storage/v1/object/list/${storage.BUCKET_PAYMENT_SCREENSHOTS}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.serviceRoleKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ prefix: '', limit: 1000 }),
+    signal: AbortSignal.timeout(15_000),
+  }).catch(() => null);
+  if (!res.ok) return [];
+  const rows = await res.json().catch(() => []);
+  return (Array.isArray(rows) ? rows.map((r) => r.name) : []).slice().sort();
+}
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Loyl-Admin-2026!Dev';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -511,14 +538,8 @@ async function main() {
     }
   }
   check('Screenshot filename recorded in the DB', !!storedPath, 'screenshotPath null');
-  let fileOnDisk = false;
-  if (storedPath) {
-    await access(path.join(SCREENSHOT_DIR, storedPath)).then(
-      () => (fileOnDisk = true),
-      () => (fileOnDisk = false)
-    );
-  }
-  check('Screenshot file exists on disk before review', fileOnDisk, storedPath || 'no path');
+  const storedOk = storedPath ? (await shots.get(storedPath)) !== null : false;
+  check('Screenshot is stored before review (driver reads it back)', storedOk, storedPath || 'no path');
 
   // --- I. Admin views the screenshot ----------------------------------------
   const listPaid = await call(`/api/admin/payments?q=${TRX1}`, { method: 'GET', cookie: admin });
@@ -564,14 +585,8 @@ async function main() {
     JSON.stringify({ deleted: approveYearly.json?.data?.deletedScreenshot })
   );
 
-  let goneFromDisk = false;
-  if (storedPath) {
-    await access(path.join(SCREENSHOT_DIR, storedPath)).then(
-      () => (goneFromDisk = false),
-      () => (goneFromDisk = true)
-    );
-  }
-  check('Screenshot FILE DELETED from storage on approve', goneFromDisk, storedPath || 'no path');
+  const goneAfterApprove = storedPath ? (await shots.get(storedPath)) === null : false;
+  check('Screenshot FILE DELETED from storage on approve', goneAfterApprove, storedPath || 'no path');
 
   const shotAfter = await call(`/api/admin/payments/${paidRow.id}/screenshot`, {
     method: 'GET',
@@ -619,13 +634,7 @@ async function main() {
     cookie: admin,
     body: { paymentRequestId: secondRow.id },
   });
-  let secondGone = false;
-  if (secondPath) {
-    await access(path.join(SCREENSHOT_DIR, secondPath)).then(
-      () => (secondGone = false),
-      () => (secondGone = true)
-    );
-  }
+  const secondGone = secondPath ? (await shots.get(secondPath)) === null : false;
   check(
     'Reject: payment REJECTED, screenshot deleted, subscription untouched',
     reject.status === 200 &&
@@ -637,7 +646,7 @@ async function main() {
   );
 
   // --- L. Duplicate trx + review guards --------------------------------------
-  const filesBefore = await readdir(SCREENSHOT_DIR).catch(() => []);
+  const filesBefore = await screenshotKeys();
   const dupTrx = await call('/api/billing/checkout', {
     cookie: mPaid,
     form: checkoutForm(
@@ -645,13 +654,13 @@ async function main() {
       { bytes: PNG_BYTES(64), type: 'image/png', name: 'dup.png' }
     ),
   });
-  const filesAfter = await readdir(SCREENSHOT_DIR).catch(() => []);
+  const filesAfter = await screenshotKeys();
   check(
     'Re-used Trx ID -> 409 TRX_ALREADY_USED and no orphan file left',
     dupTrx.status === 409 &&
       dupTrx.json?.error?.code === 'TRX_ALREADY_USED' &&
       filesAfter.length === filesBefore.length,
-    `status ${dupTrx.status}, files ${filesBefore.length} -> ${filesAfter.length}`
+    `status ${dupTrx.status}, keys ${filesBefore.length} -> ${filesAfter.length}`
   );
 
   const reApprove = await call('/api/admin/approve-payment', {

@@ -186,8 +186,8 @@ describe('supabaseStorage REST verbs', () => {
   it('GETs the authenticated path first', async () => {
     fetchMock.mockResolvedValue(new Response(PNG, { status: 200 }));
     expect(await supabaseStorage(config).get('a.png')).toEqual(PNG);
-    expect(fetchMock.mock.calls[0][0]).toBe(
-      'https://x.supabase.co/storage/v1/object/authenticated/menu-photos/a.png'
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(
+      /^https:\/\/x\.supabase\.co\/storage\/v1\/object\/authenticated\/menu-photos\/a\.png\?cb=\d+$/
     );
     expect(fetchMock.mock.calls[0][1].headers).toEqual(auth);
   });
@@ -198,12 +198,31 @@ describe('supabaseStorage REST verbs', () => {
       .mockResolvedValueOnce(new Response(PNG, { status: 200 }));
     expect(await supabaseStorage(config).get('a.png')).toEqual(PNG);
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[1][0]).toBe('https://x.supabase.co/storage/v1/object/menu-photos/a.png');
+    expect(String(fetchMock.mock.calls[1][0])).toMatch(
+      /^https:\/\/x\.supabase\.co\/storage\/v1\/object\/menu-photos\/a\.png\?cb=\d+$/
+    );
   });
 
   it('returns null when both paths 404 (object genuinely missing)', async () => {
     fetchMock.mockResolvedValue(jsonResponse(404, { message: 'not found' }));
     expect(await supabaseStorage(config).get('gone.png')).toBeNull();
+  });
+
+  it('returns null when both paths answer 400 Object not found (live Supabase shape)', async () => {
+    // Live Storage returns 400 + "Object not found" for a missing key, not
+    // 404 — keying only on 404 made every absent file throw STORAGE_GET_FAILED.
+    // A fresh Response per call, because each fetch consumes its own body.
+    fetchMock.mockImplementation(async () => jsonResponse(400, { message: 'Object not found' }));
+    expect(await supabaseStorage(config).get('gone.png')).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not mistake a 400 config error for a missing object', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(400, { message: 'Bucket not found' }));
+    await expect(supabaseStorage(config).get('a.png')).rejects.toMatchObject({
+      code: 'STORAGE_GET_FAILED',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not fall back on a non-404 failure', async () => {
@@ -233,8 +252,8 @@ describe('supabaseStorage REST verbs', () => {
   it('percent-encodes keys so a crafted name cannot escape the bucket', async () => {
     fetchMock.mockResolvedValue(jsonResponse(404, { message: 'not found' }));
     await supabaseStorage(config).get('..%2F..%2Fsecret.png');
-    expect(fetchMock.mock.calls[0][0]).toBe(
-      'https://x.supabase.co/storage/v1/object/authenticated/menu-photos/..%252F..%252Fsecret.png'
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(
+      /^https:\/\/x\.supabase\.co\/storage\/v1\/object\/authenticated\/menu-photos\/\.\.%252F\.\.%252Fsecret\.png\?cb=\d+$/
     );
   });
 });

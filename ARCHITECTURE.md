@@ -11,7 +11,7 @@ The platform follows a modern, serverless Client-Server architecture utilizing N
 - **Identity & Access Management (IAM):** Firebase Email/Password handles merchant sign-in; the server verifies the ID token and issues the `loyl_session` JWT. Customer check-in collects name + phone (no verification step).
 - **Data & Storage:** 
   - API Routes communicate with **Supabase (PostgreSQL)** for CRUD operations (via Prisma; local dev uses local PostgreSQL).
-  - Uploads (payment screenshots, menu photos) go through **`backend/storage.ts`**: Supabase Storage in **private buckets** when `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are set (production), the local `storage/` directory otherwise (dev/test). Buckets are never public — objects are only read back through the guarded admin/merchant routes.
+  - Uploads (payment screenshots, menu photos) go through **`backend/storage.ts`**: Supabase Storage in **private buckets** when `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are set (production), the local `storage/` directory otherwise (dev/test). Buckets are never public - objects are only read back through the guarded admin/merchant routes. Two live-verified quirks are handled in the driver: a missing object answers `400 Object not found` (not 404), and Cloudflare caches these GETs by URL despite `cache-control: no-cache`, so reads carry a per-request `?cb=` param - without it an overwrite or a delete kept serving the previous bytes. The cache is keyed on the `Authorization` header, so an anonymous request is refused (correctness issue, never a disclosure one).
   - Media files (logos, generated posters) are sent to **Cloudinary** via REST APIs — *plan only; not wired up (see the doc-drift note below).*
 
 ### 3. Core Operational Workflows

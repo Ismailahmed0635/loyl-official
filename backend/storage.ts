@@ -84,15 +84,33 @@ function bodyBytes(data: Buffer): ArrayBuffer {
 /** Supabase returns `{ message, statusCode }` or `{ error, statusCode }`;
  * fall back to the status line so a proxy/HTML error still reads usefully. */
 async function describeFailure(res: Response): Promise<string> {
+  return (await readFailure(res)).detail;
+}
+
+/**
+ * One body read that both explains a failure and says whether it means
+ * "the object is gone" rather than "the request broke".
+ *
+ * Live Supabase Storage (verified 2026-10-03) answers a **missing key with
+ * `400 { message: "Object not found" }`**, not 404 — so keying only on 404
+ * turned every missing screenshot/photo into a `STORAGE_GET_FAILED` throw
+ * (a 500 on the admin view route). 404 is kept because older Storage API
+ * versions and the plain object path still use it; anything else (401, 403,
+ * 500, `Bucket not found`) stays a real failure so auth/config problems are
+ * never masked as an empty result.
+ */
+async function readFailure(res: Response): Promise<{ detail: string; missing: boolean }> {
   const text = await res.text().catch(() => '');
+  let detail = `${res.status} ${res.statusText}`.trim();
   try {
     const parsed = JSON.parse(text) as { message?: string; error?: string };
-    const detail = parsed.message || parsed.error;
-    if (detail) return `${res.status}: ${detail}`;
+    const message = parsed.message || parsed.error;
+    if (message) detail = `${res.status}: ${message}`;
   } catch {
-    /* not JSON — fall through */
+    /* not JSON — keep the status line */
   }
-  return `${res.status} ${res.statusText}`.trim();
+  const missing = res.status === 404 || (res.status === 400 && /object not found/i.test(detail));
+  return { detail, missing };
 }
 
 // --- Local filesystem driver ------------------------------------------------
@@ -145,11 +163,14 @@ export function localStorage(dir: string): StorageDriver {
  * Supabase Storage over REST (`service_role` key, private buckets).
  *
  * Endpoints follow the documented Storage API. `get` tries the authenticated
- * object path first and falls back to the plain object path, because a 404
- * there is ambiguous (unknown route vs missing object) and the fallback costs
- * one request only in that case — if the object genuinely does not exist both
- * paths 404 and we return null, which is the contract. `scripts/storage-smoke.mjs`
- * exercises all three verbs against a real project to keep this honest.
+ * object path first and falls back to the plain object path, because a "not
+ * found" there is ambiguous (unknown route vs missing object) and the fallback
+ * costs one request only in that case — if the object genuinely does not
+ * exist both paths report missing (`404`, or live Supabase's
+ * `400 Object not found`) and we return null, which is the contract. Reads are
+ * cache-busted (see `get`) so a Cloudflare HIT can never serve a stale or
+ * already-deleted object. `scripts/storage-smoke.mjs` exercises all three
+ * verbs against a real project to keep this honest.
  */
 export function supabaseStorage(config: {
   url: string;
@@ -181,14 +202,24 @@ export function supabaseStorage(config: {
     },
 
     async get(key) {
-      const first = await fetch(authenticatedPath(key), { headers: auth, signal: timeoutSignal() });
+      // Cloudflare caches these GETs by URL (observed `cf-cache-status: HIT`
+      // even though Supabase answers `cache-control: no-cache`): after an
+      // overwrite the cached URL still served the *previous* bytes, and after
+      // a delete it kept serving the removed object. A per-request param forces
+      // a fresh read. The cache is keyed on the Authorization header — an
+      // anonymous request to the same URL is BYPASSed and refused 400 — so this
+      // is a correctness fix, not a disclosure one.
+      const bust = `?cb=${Date.now()}`;
+      const first = await fetch(authenticatedPath(key) + bust, { headers: auth, signal: timeoutSignal() });
       if (first.ok) return Buffer.from(await first.arrayBuffer());
-      if (first.status !== 404) throw new StorageError(await describeFailure(first), 'STORAGE_GET_FAILED');
+      const firstResult = await readFailure(first);
+      if (!firstResult.missing) throw new StorageError(firstResult.detail, 'STORAGE_GET_FAILED');
 
-      const fallback = await fetch(objectPath(key), { headers: auth, signal: timeoutSignal() });
+      const fallback = await fetch(objectPath(key) + bust, { headers: auth, signal: timeoutSignal() });
       if (fallback.ok) return Buffer.from(await fallback.arrayBuffer());
-      if (fallback.status === 404) return null;
-      throw new StorageError(await describeFailure(fallback), 'STORAGE_GET_FAILED');
+      const fallbackResult = await readFailure(fallback);
+      if (fallbackResult.missing) return null;
+      throw new StorageError(fallbackResult.detail, 'STORAGE_GET_FAILED');
     },
 
     async remove(key) {

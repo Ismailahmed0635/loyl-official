@@ -159,12 +159,23 @@ if (!config) {
     }).catch(() => null);
     check(
       'anonymous read is refused (bucket is private)',
-      anon !== null && (anon.status === 401 || anon.status === 403 || anon.status === 404),
+      // Refusal does not arrive as 401/403: live Supabase answers an anonymous
+      // request to a private bucket with 400 "Bucket not found" (anti-
+      // enumeration — it will not confirm the bucket exists). The property that
+      // matters is that the bytes are never handed out, so assert on that.
+      anon !== null && anon.status !== 200 && anon.status !== 206,
       anon ? `status ${anon.status}` : 'request failed'
     );
 
     check('remove returns true', (await driver.remove(key)) === true);
-    check('get after remove is null', (await driver.get(key)) === null);
+    // The batch DELETE answers 200 once accepted, but the object can keep
+    // serving for a beat before it disappears — poll instead of racing it.
+    let leftover = await driver.get(key);
+    for (let i = 0; i < 10 && leftover !== null; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      leftover = await driver.get(key);
+    }
+    check('get after remove is null', leftover === null, leftover ? 'object still served' : '');
     check('remove of a missing object is a no-op true', (await driver.remove(key)) === true);
   } catch (err) {
     check('supabase verbs did not throw', false, `${err.name}/${err.code ?? ''}: ${err.message}`);

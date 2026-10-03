@@ -5,7 +5,9 @@
 ### 1. Database Overview
 The application uses **Supabase (PostgreSQL)** for its relational database management. The schema is designed to be lightweight, supporting multi-tenant merchants, multi-branch GPS tracking, and manual payment verification.
 
-> **Local dev (since 2026-09-23):** PostgreSQL 16.15 runs locally as the Windows service `postgresql-x64-16` (port 5432, superuser `postgres`). Dev DB = `loyl_db`. Connection string: root `.env` (Prisma CLI) + `frontend/.env.local` (app runtime) — keep in sync. Schema changes: `npm run db:push`. GUI inspection: `npm run db:studio`. **Production** still needs a provisioned Supabase (or similar) instance — set `DATABASE_URL` in Vercel; do not point prod at localhost.
+> **Local dev (since 2026-09-23):** PostgreSQL 16.15 runs locally as the Windows service `postgresql-x64-16` (port 5432, superuser `postgres`). Dev DB = `loyl_db`. Connection string: root `.env` (Prisma CLI) + `frontend/.env.local` (app runtime) — keep in sync. Schema changes: `npm run db:push`. GUI inspection: `npm run db:studio`.
+>
+> **Production (since 2026-10-03):** Supabase project `qnxjnmhzptoiwipoleij` (AWS ap-south-1). `DATABASE_URL` in Vercel = the **session pooler on port 6543 with `?pgbouncer=true`** (runtime, serverless); migrations run from a dev machine on **port 5432** (`npx prisma migrate deploy --schema backend/prisma/schema.prisma` with `DATABASE_URL` exported — Prisma CLI reads the repo-root `.env`, so the Supabase string must come from the shell). Baseline `20260930000000_init`; both migrations applied and `migrate diff --exit-code` reports no drift. Never point prod at localhost.
 
 ### 2. Core Tables & Schema
 

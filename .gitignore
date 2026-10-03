@@ -42,3 +42,6 @@ npm-debug.log*
 
 # deploy handoff state (holds credentials — resume instructions only)
 .deploy-state.md
+
+.vercel
+.env*

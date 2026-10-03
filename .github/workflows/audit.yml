@@ -19,6 +19,11 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loyl_db?schema=public
       JWT_SECRET: ci-only-secret
       ADMIN_PASSWORD: ci-only-admin
+      # Smoke asserts a forged ID token -> 401 INVALID_FIREBASE_TOKEN; without
+      # a project id the route short-circuits to 503 FIREBASE_NOT_CONFIGURED.
+      # Verification uses Google's public certs (no key, no network for a
+      # malformed token), so the non-secret project id is safe to set here.
+      FIREBASE_PROJECT_ID: loyl-df23d
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }

@@ -652,7 +652,7 @@ section { position: relative; }
 .scan-body { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 4px; padding: 6px 0; position: relative; z-index: 10; }
 .scan-ico { width: 48px; height: 48px; border-radius: 16px; background: var(--primary-tint); border: 1px solid rgba(25, 80, 53, 0.14); color: var(--primary); display: grid; place-items: center; margin-bottom: 10px; }
 .scan-ico .ico { width: 24px; height: 24px; }
-.scan-body h4 { font-size: 12px; font-weight: 800; letter-spacing: -0.01em; }
+.scan-body .scan-title { font-size: 12px; font-weight: 800; letter-spacing: -0.01em; color: rgba(26, 26, 26, 0.92); }
 .scan-body p { font-size: 10px; color: rgba(26, 26, 26, 0.62); line-height: 1.45; max-width: 165px; }
 .scan-chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; background: var(--sand); border: 1px solid rgba(0, 0, 0, 0.06); border-radius: 12px; padding: 8px 10px; font-size: 9px; font-weight: 700; color: rgba(26, 26, 26, 0.8); }
 .scan-chip .ico { width: 15px; height: 15px; color: var(--primary); }
@@ -729,7 +729,7 @@ section { position: relative; }
 .tier.is-featured .tier-kicker { color: var(--primary); }
 .tier h3 { font-size: 21px; font-weight: 800; margin-top: 4px; }
 .tier.is-featured h3 { color: var(--primary); }
-.tier-for { font-size: 12px; color: rgba(26, 26, 26, 0.5); margin-top: 4px; margin-bottom: 22px; }
+.tier-for { font-size: 12px; color: var(--muted); margin-top: 4px; margin-bottom: 22px; }
 .tier-was { font-size: 12px; color: rgba(26, 26, 26, 0.38); text-decoration: line-through; }
 /* The price row grows with its content: it wraps rather than clipping, and
    padding-bottom absorbs the descender overflow of the 32px figure. */
@@ -740,7 +740,7 @@ section { position: relative; }
 }
 .tier-price b { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; min-width: 0; }
 .tier.is-featured .tier-price b { color: var(--primary); }
-.tier-price span { font-size: 12px; color: rgba(26, 26, 26, 0.5); font-weight: 600; }
+.tier-price span { font-size: 12px; color: var(--muted); font-weight: 600; }
 .tier-custom { font-size: 23px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25; padding-top: 14px; }
 .tier-list { display: grid; gap: 11px; font-size: 13px; color: rgba(26, 26, 26, 0.78); margin-top: 22px; }
 .tier-list li { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
@@ -826,12 +826,12 @@ section { position: relative; }
 .footer-brand { display: flex; align-items: center; gap: 10px; }
 .footer-brand .brand-mark { width: 30px; height: 30px; font-size: 13px; }
 .footer-brand b { font-size: 19px; font-weight: 800; color: var(--primary); letter-spacing: -0.02em; }
-.footer-brand span { font-size: 12px; color: rgba(26, 26, 26, 0.5); max-width: 22ch; display: none; }
+.footer-brand span { font-size: 12px; color: var(--muted); max-width: 22ch; display: none; }
 @media (min-width: 700px) { .footer-brand span { display: inline; } }
 .footer-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 22px; font-size: 13px; font-weight: 500; color: rgba(26, 26, 26, 0.7); }
 .footer-links a { transition: color 0.2s, transform 0.3s var(--ease); display: inline-block; }
 .footer-links a:hover { color: var(--primary); transform: translateY(-2px); }
-.footer-meta { font-size: 12px; color: rgba(26, 26, 26, 0.5); text-align: center; }
+.footer-meta { font-size: 12px; color: var(--muted); text-align: center; }
 @media (min-width: 860px) { .footer-meta { text-align: right; } }
 .footer-meta p + p { margin-top: 3px; }
 

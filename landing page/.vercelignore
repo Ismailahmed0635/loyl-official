@@ -1,0 +1,10 @@
+# Not shipped to the static host: local-only tooling and design artefacts.
+# `code.html` is a legacy Tailwind-CDN draft of the homepage with a duplicate
+# title — publishing it would be duplicate content, so it stays local (and is
+# noindex'd as a belt-and-braces measure if it is ever copied in).
+serve.js
+DESIGN.md
+preview-full.png
+preview-mobile.png
+screen.png
+code.html

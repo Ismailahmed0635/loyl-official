@@ -3,9 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Loyl — Turn Every Visit into a Repeat Customer</title>
-<meta name="description" content="QR-based loyalty program for cafés, salons, gyms, restaurants & more. Set up in 2 minutes, no app download needed.">
+<title>Loyl — QR Loyalty Program for Cafes &amp; Salons in Bangladesh</title>
+<meta name="description" content="Run a digital loyalty program in Bangladesh: QR stamp cards, scratch rewards and a digital menu for cafes, salons and gyms. Free for one branch, no app.">
+<meta name="robots" content="index, follow, max-image-preview:large">
 <meta name="theme-color" content="#195035">
+<!-- LANDING_ORIGIN — this site's own origin (Vercel project `loyl-landing`).
+     Canonical/OG/sitemap URLs are absolute and must match the deployed host;
+     the app lives on a *different* origin (`https://loyl-self.vercel.app`) and
+     is only ever linked to, never canonicalised to. -->
+<link rel="canonical" href="https://loyl-landing.vercel.app/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Loyl">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="https://loyl-landing.vercel.app/">
+<meta property="og:title" content="Loyl — QR Loyalty Program for Cafes &amp; Salons in Bangladesh">
+<meta property="og:description" content="Run a digital loyalty program in Bangladesh: QR stamp cards, scratch rewards and a digital menu for cafes, salons and gyms. Free for one branch, no app.">
+<meta property="og:image" content="https://loyl-landing.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Loyl stamp-card app screen: 7 of 8 stamps earned, one away from a free drink">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Loyl — QR Loyalty Program for Cafes &amp; Salons in Bangladesh">
+<meta name="twitter:description" content="Run a digital loyalty program in Bangladesh: QR stamp cards, scratch rewards and a digital menu for cafes, salons and gyms. Free for one branch, no app.">
+<meta name="twitter:image" content="https://loyl-landing.vercel.app/og.png">
 <!--
   APP_ORIGIN — the Next.js app's public origin.
   Every Sign In / Get Started / Start Free Trial CTA below points at
@@ -18,7 +38,7 @@
   as NEXT_PUBLIC_APP_URL in Vercel's production env.
 -->
 <!-- nosemgrep -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%23195035'/%3E%3Ctext%20x='32'%20y='44'%20font-family='Inter,Arial,sans-serif'%20font-size='36'%20font-weight='800'%20fill='%23fff'%20text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
@@ -29,6 +49,77 @@
   window.__loylFailsafe = setTimeout(function () {
     document.documentElement.classList.remove("js");
   }, 2500);
+</script>
+<!-- Structured data (JSON-LD — Google's preferred format).
+     FAQPage is deliberately absent: Google retired FAQ rich results for all
+     sites on 2026-05-07, so the visible FAQ carries no markup (the Q&A is
+     crawlable HTML either way). No rating/review markup either — the "4.9/5.0"
+     pill is product mock-up copy, not a collected review. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://loyl-landing.vercel.app/#organization",
+      "name": "Loyl",
+      "url": "https://loyl-landing.vercel.app/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://loyl-landing.vercel.app/icon.svg",
+        "width": 512,
+        "height": 512
+      },
+      "description": "Loyl is a QR-based digital loyalty and stamp-card platform for cafes, salons, gyms, restaurants and retail chains in Bangladesh.",
+      "email": "hello@loyl.app",
+      "areaServed": {
+        "@type": "Country",
+        "name": "Bangladesh"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://loyl-landing.vercel.app/#website",
+      "url": "https://loyl-landing.vercel.app/",
+      "name": "Loyl",
+      "inLanguage": "en",
+      "publisher": { "@id": "https://loyl-landing.vercel.app/#organization" }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "Loyl",
+      "url": "https://loyl-landing.vercel.app/",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "Loyalty Program Software",
+      "operatingSystem": "Web",
+      "description": "QR stamp cards, scratch-card rewards, digital menus and live analytics for small businesses. Customers scan with their camera — no app download.",
+      "inLanguage": "en",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Free",
+          "price": "0",
+          "priceCurrency": "BDT",
+          "description": "1 location, scratch-card offers, printable QR kit."
+        },
+        {
+          "@type": "Offer",
+          "name": "Starter",
+          "price": "500",
+          "priceCurrency": "BDT",
+          "description": "1 branch, all features including digital menu, 3-day free trial."
+        },
+        {
+          "@type": "Offer",
+          "name": "Growth",
+          "price": "1000",
+          "priceCurrency": "BDT",
+          "description": "Up to 3 branches, GPS auto-store detection, priority support, 3-day free trial."
+        }
+      ]
+    }
+  ]
+}
 </script>
 </head>
 <body>
@@ -73,7 +164,7 @@
 <!-- ============ 1. NAV ============ -->
 <header class="nav" id="top">
   <div class="wrap nav-inner">
-    <a class="brand" href="#top" aria-label="Loyl home">
+    <a class="brand" href="#top">
       <span class="brand-mark">L</span>
       <span class="brand-name">Loyl</span>
     </a>
@@ -375,7 +466,7 @@
 
               <div class="scan-body">
                 <div class="scan-ico"><svg class="ico"><use href="#i-coffee"/></svg></div>
-                <h4>Scan. Earn. Return.</h4>
+                <p class="scan-title">Scan. Earn. Return.</p>
                 <p>Point camera at the counter QR stand to validate visit.</p>
                 <span class="scan-chip"><svg class="ico"><use href="#i-qr"/></svg> Instant Tap Detection</span>
               </div>

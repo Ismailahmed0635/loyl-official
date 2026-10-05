@@ -1,5 +1,11 @@
 /**
- * favicon-gen.mjs — regenerate `frontend/app/favicon.ico` from `frontend/public/icon.svg`.
+ * favicon-gen.mjs — regenerate an ICO from an SVG source.
+ *
+ * Usage:
+ *   node scripts/favicon-gen.mjs
+ *     -> frontend/app/favicon.ico from frontend/public/icon.svg (the app)
+ *   node scripts/favicon-gen.mjs "landing page/icon.svg" "landing page/favicon.ico"
+ *     -> the static marketing landing's favicon (same icon, second origin)
  *
  * Why this exists: every page console logged a /favicon.ico 404 (CODIN §10). The app
  * ships an SVG icon (`/icon.svg`, linked by layout metadata), but browsers and crawlers
@@ -18,8 +24,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SVG = path.join(root, 'frontend', 'public', 'icon.svg');
-const OUT = path.join(root, 'frontend', 'app', 'favicon.ico');
+// Optional argv: `node scripts/favicon-gen.mjs <svg> <out.ico>` — used to generate
+// the static landing's favicon from `landing page/icon.svg`. No args = the app
+// default below (frontend/public/icon.svg -> frontend/app/favicon.ico).
+const SVG = process.argv[2]
+  ? path.resolve(root, process.argv[2])
+  : path.join(root, 'frontend', 'public', 'icon.svg');
+const OUT = process.argv[3]
+  ? path.resolve(root, process.argv[3])
+  : path.join(root, 'frontend', 'app', 'favicon.ico');
 const SIZES = [16, 32, 48, 64, 256];
 
 const CHROME_CANDIDATES = [

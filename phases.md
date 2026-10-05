@@ -235,8 +235,11 @@ byte-identical, verified).
   single-page site whose next hop is a different origin.
 
 Still pending here: /pricing, /terms on the **app** origin, Google Search
-Console / IndexNow submission for `loyl-landing.vercel.app` (needs the owner's
-domain verification), and a custom domain — when one lands, rewrite the
+Console submission for `loyl-landing.vercel.app` (needs the owner's domain
+verification) — **IndexNow is done**: the key file
+`landing page/b2ee1f8bf889fae748d5715a08ec77d0.txt` serves 200 from the origin
+and `POST https://api.indexnow.org/indexnow` for all four sitemap URLs returned
+202 — and a custom domain — when one lands, rewrite the
 `loyl-landing.vercel.app` origin in the four HTML heads, `robots.txt`,
 `sitemap.xml` and `og-gen.mjs`/`index.html` footers together.
 

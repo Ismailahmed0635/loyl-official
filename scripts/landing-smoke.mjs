@@ -18,6 +18,8 @@ const BASE = (process.argv[2] || 'https://loyl-landing.vercel.app').replace(/\/+
 /** The app origin — conversion CTAs must navigate here, never to an anchor. */
 const APP = 'https://loyl-self.vercel.app';
 const WELCOME = `${APP}/welcome`;
+/** IndexNow ownership key — served as `/<key>.txt`, quoted in every ping. */
+const INDEXNOW_KEY = 'b2ee1f8bf889fae748d5715a08ec77d0';
 
 let passed = 0;
 let failed = 0;
@@ -170,6 +172,18 @@ async function main() {
   for (const p of ['/contact.html', '/privacy.html', '/refund.html']) {
     check(`sitemap includes ${p}`, locs.includes(`${BASE}${p}`), locs.join(', '));
   }
+
+  // --- IndexNow key file --------------------------------------------------
+  // Pings are only honoured after the engine fetches `/<key>.txt` and gets the
+  // key back verbatim; a 404 here silently voids every submission.
+  const keyFile = await get(`/${INDEXNOW_KEY}.txt`);
+  check('IndexNow key file -> 200', keyFile.status === 200, `status ${keyFile.status}`);
+  check(
+    'IndexNow key body matches the key',
+    keyFile.body.trim() === INDEXNOW_KEY,
+    JSON.stringify((keyFile.body || '').slice(0, 40)),
+  );
+  check('IndexNow key is 32 lowercase hex', /^[0-9a-f]{32}$/.test(INDEXNOW_KEY), INDEXNOW_KEY);
 
   // --- sub-pages: self-canonical, indexable, one h1 -----------------------
   for (const p of ['/contact.html', '/privacy.html', '/refund.html']) {

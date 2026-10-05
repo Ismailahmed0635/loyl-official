@@ -234,9 +234,13 @@ byte-identical, verified).
   (speculation rules, `fetchpriority` on an LCP image) do not apply to a
   single-page site whose next hop is a different origin.
 
-Still pending here: /pricing, /terms on the **app** origin, Google Search
-Console submission for `loyl-landing.vercel.app` (needs the owner's domain
-verification) — **IndexNow is done**: the key file
+Still pending here: /pricing, /terms on the **app** origin, and the Google
+Search Console **sitemap submission** for `loyl-landing.vercel.app` (ownership
+is verified: the HTML-file token `google8ce001c6f73cac31.html` is published at
+the origin root and re-fetched by the smoke; the owner's first sitemap submit
+came back "Sitemap could not be read" while the file itself answers 200 to a
+Googlebot UA — so it is either the wrong property or a doubled URL, and is
+being retried) — **IndexNow is done**: the key file
 `landing page/b2ee1f8bf889fae748d5715a08ec77d0.txt` serves 200 from the origin
 and `POST https://api.indexnow.org/indexnow` for all four sitemap URLs returned
 202 — and a custom domain — when one lands, rewrite the

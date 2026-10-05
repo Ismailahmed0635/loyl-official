@@ -20,6 +20,8 @@ const APP = 'https://loyl-self.vercel.app';
 const WELCOME = `${APP}/welcome`;
 /** IndexNow ownership key — served as `/<key>.txt`, quoted in every ping. */
 const INDEXNOW_KEY = 'b2ee1f8bf889fae748d5715a08ec77d0';
+/** Search Console HTML-file verification — must stay published at the root. */
+const GSC_FILE = 'google8ce001c6f73cac31.html';
 
 let passed = 0;
 let failed = 0;
@@ -184,6 +186,17 @@ async function main() {
     JSON.stringify((keyFile.body || '').slice(0, 40)),
   );
   check('IndexNow key is 32 lowercase hex', /^[0-9a-f]{32}$/.test(INDEXNOW_KEY), INDEXNOW_KEY);
+
+  // --- Search Console HTML-file verification ------------------------------
+  // Google re-fetches this after verifying; a 404 silently un-verifies the
+  // property and every report in it goes dark.
+  const gsc = await get(`/${GSC_FILE}`);
+  check('GSC verification file -> 200', gsc.status === 200, `status ${gsc.status}`);
+  check(
+    'GSC verification body matches its filename',
+    gsc.body.trim() === `google-site-verification: ${GSC_FILE}`,
+    JSON.stringify((gsc.body || '').slice(0, 60)),
+  );
 
   // --- sub-pages: self-canonical, indexable, one h1 -----------------------
   for (const p of ['/contact.html', '/privacy.html', '/refund.html']) {

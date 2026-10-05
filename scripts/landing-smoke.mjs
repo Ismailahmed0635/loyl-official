@@ -15,6 +15,9 @@
  *    and this script asserts against whatever origin it is given.)
  */
 const BASE = (process.argv[2] || 'https://loyl-landing.vercel.app').replace(/\/+$/, '');
+/** The app origin — conversion CTAs must navigate here, never to an anchor. */
+const APP = 'https://loyl-self.vercel.app';
+const WELCOME = `${APP}/welcome`;
 
 let passed = 0;
 let failed = 0;
@@ -134,7 +137,24 @@ async function main() {
   check('Referrer-Policy present', hdr('referrer-policy').length > 0);
 
   // --- CTA wiring to the app origin --------------------------------------
-  check('CTAs point at the app /welcome', home.body.includes('https://loyl-self.vercel.app/welcome'));
+  check('CTAs point at the app /welcome', home.body.includes(WELCOME));
+
+  // Every conversion CTA must be a real navigation. `script.js` calls
+  // preventDefault() on every `a[href^="#"]` to smooth-scroll, so a CTA parked
+  // on an anchor silently does nothing (bug 2026-10-05: 7 of them sat on
+  // `#pricing`).
+  const CTA = /Start Free Trial|Start Your Free Trial|Get Started|Sign In/i;
+  const ctas = [...home.body.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)]
+    .map((hit) => ({
+      attrs: hit[1],
+      text: decodeEntities(hit[2].replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim(),
+    }))
+    .filter((a) => CTA.test(a.text));
+  check(`homepage has conversion CTAs (found ${ctas.length})`, ctas.length >= 8, `${ctas.length}`);
+  for (const a of ctas) {
+    const href = (a.attrs.match(/href="([^"]*)"/) || [])[1];
+    check(`CTA "${a.text.slice(0, 30)}" -> /welcome`, href === WELCOME, `got ${href}`);
+  }
 
   // --- robots + sitemap ---------------------------------------------------
   const robots = await get('/robots.txt');
@@ -160,6 +180,8 @@ async function main() {
     check(`${p} has og:image`, r.body.includes(`content="${BASE}/og.png"`));
     check(`${p} exactly one <h1>`, (r.body.match(/<h1[ >]/g) || []).length === 1);
     check(`${p} has no localhost`, !r.body.includes('localhost'));
+    check(`${p} Start Free Trial -> /welcome`, r.body.includes(`href="${WELCOME}">Start Free Trial`));
+    check(`${p} has no anchored conversion CTA`, !/href="(?:index\.html)?#pricing">Start Free/.test(r.body));
   }
 
   // --- deliberate exclusions ---------------------------------------------

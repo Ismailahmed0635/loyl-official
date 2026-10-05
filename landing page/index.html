@@ -28,14 +28,20 @@
 <meta name="twitter:image" content="https://loyl-landing.vercel.app/og.png">
 <!--
   APP_ORIGIN — the Next.js app's public origin.
-  Every Sign In / Get Started / Start Free Trial CTA below points at
-  `${APP_ORIGIN}/welcome`, which is the app's single phone -> OTP entry and
-  serves BOTH a first-time registration (-> /business-setup) and a returning
-  sign-in. There is no separate register screen.
+  Every conversion CTA (Sign In / Get Started / Start Free Trial / Start Your
+  Free Trial) points at `${APP_ORIGIN}/welcome`, which is the app's single
+  phone -> email auth entry and serves BOTH a first-time registration
+  (-> /business-setup) and a returning sign-in. There is no separate register
+  screen. Do NOT point one of these at an in-page anchor: `script.js` calls
+  preventDefault() on every `a[href^="#"]` to smooth-scroll, so an anchored
+  CTA never navigates (that was the 2026-10-05 bug — 7 CTAs sat on
+  `#pricing`). In-page anchors are only for the nav "Pricing" link and the
+  "Claim Your Stand" explainer.
   Production origin is fixed (2026-10-03): `https://loyl-self.vercel.app`
   everywhere in this file (it is the only origin used; links are absolute
   because the landing page and the app are different origins) and it is set
   as NEXT_PUBLIC_APP_URL in Vercel's production env.
+  `scripts/landing-smoke.mjs` enforces this.
 -->
 <!-- nosemgrep -->
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -178,7 +184,7 @@
 
     <div class="nav-actions">
       <a class="nav-signin" href="https://loyl-self.vercel.app/welcome">Sign In</a>
-      <a class="btn btn-primary btn-sm" href="#pricing">Start Free Trial</a>
+      <a class="btn btn-primary btn-sm" href="https://loyl-self.vercel.app/welcome">Start Free Trial</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu">
         <span></span><span></span><span></span>
       </button>
@@ -193,7 +199,7 @@
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
         <a href="https://loyl-self.vercel.app/welcome">Sign In</a>
-        <a class="mobile-cta" href="#pricing">Start Free Trial</a>
+        <a class="mobile-cta" href="https://loyl-self.vercel.app/welcome">Start Free Trial</a>
       </nav>
     </div>
   </div>
@@ -213,7 +219,7 @@
       <p class="lede" data-reveal style="--d:.19s">QR-based loyalty program for cafés, salons, gyms, restaurants &amp; more. Set up in 2 minutes, no app download needed.</p>
 
       <div class="hero-cta" data-reveal style="--d:.26s">
-        <a class="btn btn-primary btn-lg" href="#pricing">Start Free Trial</a>
+        <a class="btn btn-primary btn-lg" href="https://loyl-self.vercel.app/welcome">Start Free Trial</a>
         <a class="btn btn-outline-a btn-lg" href="#how-it-works">See How It Works</a>
       </div>
 
@@ -663,7 +669,7 @@
     <h2 data-reveal>Ready to grow your business?</h2>
     <p class="sub" data-reveal style="--d:.08s">Join 500+ businesses using Loyl to increase repeat customers.</p>
     <div data-reveal style="--d:.16s">
-      <a class="btn btn-white btn-lg" href="#pricing">Start Your Free Trial</a>
+      <a class="btn btn-white btn-lg" href="https://loyl-self.vercel.app/welcome">Start Your Free Trial</a>
     </div>
     <p class="cta-signin" data-reveal style="--d:.22s">Already have a business? <a href="https://loyl-self.vercel.app/welcome">Sign In</a></p>
   </div>

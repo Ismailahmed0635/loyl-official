@@ -68,7 +68,7 @@ export default function NotFound() {
           {/* 4 0 4 with the severed-route badge in the middle */}
           <div className="flex items-center justify-center gap-3 sm:gap-5 mt-space-lg" aria-hidden="true">
             <span className="font-display-lg text-display-lg text-outline-variant select-none">4</span>
-            <span className="flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-surface-container-low border border-hairline shadow-hairline">
+            <span className="flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-surface-container-low border border-hairline shadow-sm">
               <RouteOff className="w-5 h-5 text-brand-green" strokeWidth={1.75} />
               <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant mt-0.5">
                 Null Route
@@ -132,7 +132,7 @@ export default function NotFound() {
               <Link
                 key={destination.href}
                 href={destination.href}
-                className="group flex flex-col gap-1.5 p-4 rounded-card bg-surface-container-lowest border border-hairline shadow-hairline hover:shadow-ambient hover:border-primary-fixed-dim transition-shadow min-h-[44px]"
+                className="group flex flex-col gap-1.5 p-4 rounded-card bg-surface-container-lowest border border-hairline shadow-sm hover:shadow-ambient hover:border-primary-fixed-dim transition-shadow min-h-[44px]"
               >
                 <span className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2 font-label-lg text-label-lg text-on-surface">

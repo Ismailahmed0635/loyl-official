@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Merchant } from '@prisma/client';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { FadeUp } from '@/components/animations/FadeUp';
@@ -43,10 +45,10 @@ function isValidOptionalUrl(value: string): boolean {
   }
 }
 
-const SUBSCRIPTION_LABEL: Record<string, { label: string; tone: string }> = {
-  PENDING: { label: 'Payment pending', tone: 'bg-surface-container-high text-on-surface-variant' },
-  ACTIVE: { label: 'Subscription active', tone: 'bg-primary-fixed text-on-primary-fixed' },
-  EXPIRED: { label: 'Subscription expired', tone: 'bg-error-container text-on-error-container' },
+const SUBSCRIPTION_LABEL: Record<string, { label: string; tone: 'success' | 'neutral' | 'wine' }> = {
+  PENDING: { label: 'Payment pending', tone: 'neutral' },
+  ACTIVE: { label: 'Subscription active', tone: 'success' },
+  EXPIRED: { label: 'Subscription expired', tone: 'wine' },
 };
 
 const SELECT_CLASS =
@@ -156,9 +158,9 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-space-lg" aria-busy="true">
-        <div className="h-10 bg-surface-container-lowest rounded-card border border-hairline shadow-hairline" />
-        <div className="h-72 bg-surface-container-lowest rounded-card border border-hairline shadow-hairline" />
-        <div className="h-40 bg-surface-container-lowest rounded-card border border-hairline shadow-hairline" />
+        <div className="h-10 bg-surface-container-lowest rounded-card border border-hairline shadow-sm" />
+        <div className="h-72 bg-surface-container-lowest rounded-card border border-hairline shadow-sm" />
+        <div className="h-40 bg-surface-container-lowest rounded-card border border-hairline shadow-sm" />
       </div>
     );
   }
@@ -190,12 +192,10 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-space-lg">
       <FadeUp>
-        <div>
-          <h1 className="font-headline-md text-headline-md text-on-surface">Settings</h1>
-          <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-            Your business profile, social links, and account details.
-          </p>
-        </div>
+        <PageHeader
+          title="Settings"
+          meta="Your business profile, social links, and account details."
+        />
       </FadeUp>
 
       {saved && (
@@ -310,11 +310,9 @@ export default function SettingsPage() {
                 <Phone className="w-4 h-4" /> {merchant.phoneNumber}
               </span>
               {subscription && (
-                <span
-                  className={`px-2.5 py-0.5 rounded-pill font-label-sm text-label-sm uppercase ${subscription.tone}`}
-                >
+                <Badge tone={subscription.tone} uppercase>
                   {subscription.label}
-                </span>
+                </Badge>
               )}
             </div>
             <p className="font-body-sm text-body-sm text-on-surface-variant tabular-nums">

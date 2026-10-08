@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Store, LogOut, AlertCircle, LayoutDashboard } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { FadeUp } from '@/components/animations/FadeUp';
 import { getAuthMe, logout } from '@/lib/api/client';
@@ -63,8 +64,8 @@ export default function CustomerProfilePage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-4" aria-busy="true">
-        <div className="h-36 bg-surface-container-lowest rounded-xl border border-hairline shadow-hairline" />
-        <div className="h-24 bg-surface-container-lowest rounded-xl border border-hairline shadow-hairline" />
+        <div className="h-36 bg-surface-container-lowest rounded-xl border border-hairline shadow-sm" />
+        <div className="h-24 bg-surface-container-lowest rounded-xl border border-hairline shadow-sm" />
       </div>
     );
   }
@@ -83,16 +84,16 @@ export default function CustomerProfilePage() {
       {/* Identity */}
       <FadeUp>
         <Card className="p-5 flex items-center gap-4 shadow-ambient">
-          <span className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-primary-fixed text-brand-green shrink-0">
+          <span className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-surface-container text-primary shrink-0">
             <User className="w-7 h-7" />
           </span>
           <div className="min-w-0">
             <p className="font-headline-md text-headline-md text-on-surface truncate">
               {maskPhone(phone)}
             </p>
-            <span className="inline-block mt-1.5 px-2.5 py-1 rounded-pill bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
+            <Badge tone="neutral" uppercase className="mt-1.5">
               {isMerchant ? 'Loyl merchant · customer' : 'Loyl customer'}
-            </span>
+            </Badge>
           </div>
         </Card>
       </FadeUp>

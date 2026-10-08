@@ -138,7 +138,7 @@ export default async function PublicMenuPage({ params }: { params: Promise<{ slu
                   {category.items.map((item) => (
                     <li
                       key={item.id}
-                      className="rounded-card p-4 flex items-start justify-between gap-4 shadow-hairline"
+                      className="rounded-card p-4 flex items-start justify-between gap-4 shadow-sm"
                       style={{ backgroundColor: surface }}
                     >
                       <div className="min-w-0">

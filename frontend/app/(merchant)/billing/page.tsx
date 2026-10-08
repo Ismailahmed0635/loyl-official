@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { FadeUp } from '@/components/animations/FadeUp';
 import { StatusPill } from '@/components/admin/StatusPill';
@@ -56,15 +58,14 @@ export default function BillingPage() {
 
   return (
     <FadeUp>
-      <div className="mb-6">
-        <h1 className="font-headline-md text-headline-md text-on-surface">
-          Billing &amp; Subscription
-        </h1>
-        <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
-          Pay with bKash or Nagad — every transfer is verified manually before your subscription
-          activates.
-        </p>
-      </div>
+      <PageHeader
+        title="Billing & Subscription"
+        meta="Pay with bKash or Nagad — every transfer is verified manually before your subscription activates."
+        eyebrow={
+          sub ? <Badge tone={sub.phase === 'EXPIRED' ? 'wine' : 'success'}>{TIER_LABELS[sub.tier]} plan</Badge> : undefined
+        }
+      />
+      <div className="mt-6 flex flex-col gap-space-md">
 
       {error != null && (
         <p
@@ -131,7 +132,7 @@ export default function BillingPage() {
                 <span className="font-label-lg text-label-lg text-on-surface">{plan.name}</span>
                 {plan.tier === 'PREMIUM' && <Sparkles size={15} className="text-brand-red" />}
               </div>
-              <p className="mt-2 font-metric-num text-metric-num text-brand-green tabular-nums leading-none">
+              <p className="mt-2 font-metric-num text-metric-num text-on-surface tabular-nums leading-none">
                 {plan.priceBdt === 0 ? 'Free' : `৳${plan.priceBdt.toLocaleString('en-US')}`}
               </p>
               <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
@@ -230,6 +231,7 @@ export default function BillingPage() {
         onClose={() => setModalTier(null)}
         onSubmitted={load}
       />
+      </div>
     </FadeUp>
   );
 }

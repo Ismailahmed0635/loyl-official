@@ -143,7 +143,7 @@ export default function WelcomePage() {
         >
           {/* Brand trust overhead badge */}
           <div className="flex justify-center mb-4">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-surface-container-low border border-hairline shadow-hairline">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-surface-container-low border border-hairline shadow-sm">
               <span className="w-2 h-2 rounded-full bg-brand-red animate-pulse" aria-hidden="true" />
               <span className="font-label-sm text-label-sm uppercase tracking-wider text-brand-green font-bold">
                 Loyalty built for Bangladesh

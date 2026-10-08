@@ -52,9 +52,9 @@ export default function DigitalMenuPage() {
   if (!data) {
     return (
       <div className="flex flex-col gap-space-lg" aria-busy="true">
-        <div className="h-28 rounded-card border border-hairline bg-white shadow-hairline" />
-        <div className="h-56 rounded-card border border-hairline bg-white shadow-hairline" />
-        <div className="h-72 rounded-card border border-hairline bg-white shadow-hairline" />
+        <div className="h-28 rounded-card border border-hairline bg-surface-container-lowest shadow-sm" />
+        <div className="h-56 rounded-card border border-hairline bg-surface-container-lowest shadow-sm" />
+        <div className="h-72 rounded-card border border-hairline bg-surface-container-lowest shadow-sm" />
       </div>
     );
   }

@@ -4,6 +4,8 @@ import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Branch } from '@prisma/client';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { FadeUp } from '@/components/animations/FadeUp';
@@ -256,33 +258,30 @@ function BranchesContent() {
   return (
     <div className="flex flex-col gap-space-lg">
       <FadeUp>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="font-headline-md text-headline-md text-on-surface">Branches</h1>
-            <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-              Each branch can carry its own QR. GPS coordinates help match nearby scans to the
-              right shop.
-            </p>
-          </div>
-          {!showForm && (
-            <div className="flex shrink-0 items-center gap-2">
-              {/* LOYLS §5 — the Digital Menu is entered from the Branch Page
-                  through a camera icon that shoots the printed menu. */}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => menuCameraRef.current?.click()}
-                isLoading={menuSnapping}
-                aria-label="Snap a photo of your printed menu"
-              >
-                <Camera className="w-4 h-4 mr-1" /> Menu
-              </Button>
-              <Button size="sm" variant="primary" onClick={openCreate}>
-                <Plus className="w-4 h-4 mr-1" /> Add
-              </Button>
-            </div>
-          )}
-        </div>
+        <PageHeader
+          title="Branches"
+          meta="Each branch can carry its own QR. GPS coordinates help match nearby scans to the right shop."
+          actions={
+            !showForm ? (
+              <div className="flex shrink-0 items-center gap-2">
+                {/* LOYLS §5 — the Digital Menu is entered from the Branch Page
+                    through a camera icon that shoots the printed menu. */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => menuCameraRef.current?.click()}
+                  isLoading={menuSnapping}
+                  aria-label="Snap a photo of your printed menu"
+                >
+                  <Camera className="w-4 h-4 mr-1" /> Menu
+                </Button>
+                <Button size="sm" variant="primary" onClick={openCreate}>
+                  <Plus className="w-4 h-4 mr-1" /> Add
+                </Button>
+              </div>
+            ) : undefined
+          }
+        />
       </FadeUp>
 
       {/* Camera-only: `capture` skips the gallery chooser on a phone. */}
@@ -416,7 +415,7 @@ function BranchesContent() {
               <Card key={branch.id} className="p-4 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
-                    <span className="w-9 h-9 rounded-lg bg-primary-fixed/60 text-brand-green grid place-items-center shrink-0">
+                    <span className="w-9 h-9 rounded-lg bg-surface-container text-primary grid place-items-center shrink-0">
                       <MapPin size={18} />
                     </span>
                     <div className="min-w-0">
@@ -435,13 +434,9 @@ function BranchesContent() {
                       </p>
                     </div>
                   </div>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-pill font-label-sm text-label-sm uppercase shrink-0 ${
-                      hasGps ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-container-high text-on-surface-variant'
-                    }`}
-                  >
+                  <Badge tone={hasGps ? 'success' : 'neutral'} uppercase className="shrink-0">
                     {hasGps ? 'GPS ✓' : 'No GPS'}
-                  </span>
+                  </Badge>
                 </div>
 
                 {confirmDeleteId === branch.id ? (

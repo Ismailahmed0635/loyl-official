@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { FadeUp } from '@/components/animations/FadeUp';
@@ -62,18 +64,23 @@ export default function CustomersPage() {
   return (
     <div className="flex flex-col gap-space-lg">
       <FadeUp>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="font-headline-md text-headline-md text-on-surface">Customers</h1>
-            <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-              {data
-                ? `${data.stats.totalCustomers} card holder${data.stats.totalCustomers === 1 ? '' : 's'} at your shop${
-                    submittedQuery ? ` · showing matches for “${submittedQuery}”` : ''
-                  }`
-                : 'Everyone who collected a stamp card at your shop.'}
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Customers"
+          eyebrow={
+            data ? (
+              <Badge tone="success">
+                {data.stats.totalCustomers} holder{data.stats.totalCustomers === 1 ? '' : 's'}
+              </Badge>
+            ) : undefined
+          }
+          meta={
+            data
+              ? `${data.stats.totalCustomers} card holder${data.stats.totalCustomers === 1 ? '' : 's'} at your shop${
+                  submittedQuery ? ` · showing matches for “${submittedQuery}”` : ''
+                }`
+              : 'Everyone who collected a stamp card at your shop.'
+          }
+        />
       </FadeUp>
 
       {/* Search */}
@@ -108,7 +115,7 @@ export default function CustomersPage() {
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="h-24 bg-surface-container-lowest rounded-card border border-hairline shadow-hairline"
+              className="h-24 bg-surface-container-lowest rounded-card border border-hairline shadow-sm"
             />
           ))}
         </div>
@@ -139,7 +146,7 @@ export default function CustomersPage() {
               <Card key={customer.id} className="p-4 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-9 h-9 rounded-full bg-primary-fixed/60 text-brand-green grid place-items-center shrink-0">
+                    <span className="w-9 h-9 rounded-full bg-surface-container text-primary grid place-items-center shrink-0">
                       <Users size={18} />
                     </span>
                     <div className="min-w-0">

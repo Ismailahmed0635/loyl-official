@@ -86,7 +86,7 @@ function ScanContent() {
       <div className="flex flex-col gap-4">
         <FadeUp>
           <Card className="p-6 text-center flex flex-col items-center gap-3">
-            <span className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-primary-fixed text-brand-green">
+            <span className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-surface-container text-primary">
               <QrCode className="w-7 h-7" />
             </span>
             <h1 className="font-headline-md text-headline-md text-on-surface">
@@ -126,7 +126,7 @@ function ScanContent() {
           variants={slideUp}
         >
           <Card className="p-5 flex items-center gap-3">
-            <span className="inline-flex items-center justify-center w-11 h-11 rounded-input bg-primary-fixed text-brand-green shrink-0">
+            <span className="inline-flex items-center justify-center w-11 h-11 rounded-input bg-surface-container text-primary shrink-0">
               {ctx.merchant.logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img

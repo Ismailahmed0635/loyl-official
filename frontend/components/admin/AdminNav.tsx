@@ -27,7 +27,7 @@ export const AdminNav: React.FC = () => {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-hairline bg-white/85 frost shadow-frost">
+    <header className="sticky top-0 z-40 border-b border-hairline bg-surface-container-lowest/85 frost shadow-frost">
       <div className="max-w-6xl mx-auto flex h-16 items-center justify-between gap-6 px-6">
         <Link href="/admin" className="flex items-center gap-2.5 shrink-0">
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-green text-white shadow-inset-light">

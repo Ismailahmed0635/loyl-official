@@ -15,7 +15,7 @@ export default function TermsPage() {
 
   return (
     <main className="min-h-screen bg-surface-container-lowest flex items-center justify-center p-4 md:p-8">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-ambient p-8 md:p-12">
+      <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-panel shadow-ambient p-8 md:p-12">
         <h1 className="text-3xl font-bold text-brand-green mb-6 tracking-tight">
           Terms of Service
         </h1>

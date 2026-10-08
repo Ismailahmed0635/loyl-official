@@ -24,16 +24,18 @@ export const Button: React.FC<ButtonProps> = ({
     'inline-flex items-center justify-center font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed select-none min-h-[44px]';
 
   // Sovereign Green button recipes (DESIGN.md → Components → Buttons):
-  // primary = Royal Green with a hairline inset; accent/secondary = Wine, the
+  // primary = Royal Green with a hairline inset; secondary/accent = Wine, the
   // destructive + redemption register every call site already uses it for;
   // outline = the design's "Secondary" (transparent + hairline stroke).
+  // Hover/active stay token-only (brightness filter) so no hardcoded hex
+  // drifts away from the Stitch palette.
   const variants = {
     primary:
-      'bg-brand-green text-white hover:bg-brand-greenDark active:bg-[#0A3A22] shadow-inset-light focus:ring-brand-green rounded-input',
+      'bg-brand-green text-white hover:bg-brand-greenDark active:brightness-90 shadow-sm shadow-inset-light focus:ring-brand-green rounded-input',
     secondary:
-      'bg-brand-red text-white hover:bg-[#5C0F1B] active:bg-[#4A0C16] shadow-inset-light focus:ring-brand-red rounded-input',
+      'bg-brand-red text-white hover:brightness-110 active:brightness-90 shadow-sm shadow-inset-light focus:ring-brand-red rounded-input',
     accent:
-      'bg-brand-red text-white hover:bg-[#5C0F1B] active:bg-[#4A0C16] shadow-inset-light focus:ring-brand-red rounded-input',
+      'bg-brand-red text-white hover:brightness-110 active:brightness-90 shadow-sm shadow-inset-light focus:ring-brand-red rounded-input',
     outline:
       'border border-brand-border bg-white text-brand-textMain hover:bg-primary-container/[0.04] focus:ring-brand-green rounded-input',
     ghost:

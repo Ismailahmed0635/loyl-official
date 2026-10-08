@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { Offer } from '@prisma/client';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { IconTile } from '@/components/ui/IconTile';
 import { FadeUp } from '@/components/animations/FadeUp';
 import { Stagger } from '@/components/animations/Stagger';
 import { progressFill } from '@/lib/motion/variants';
@@ -66,22 +68,22 @@ function OfferStatusPill({ offer }: { offer: Offer }) {
   const left = daysLeft(offer);
   if (!offer.isActive) {
     return (
-      <span className="px-2.5 py-0.5 rounded-pill font-label-sm text-label-sm uppercase bg-surface-container-high text-on-surface-variant">
+      <Badge tone="neutral" uppercase>
         Paused
-      </span>
+      </Badge>
     );
   }
   if (left <= 0) {
     return (
-      <span className="px-2.5 py-0.5 rounded-pill font-label-sm text-label-sm uppercase bg-error-container text-on-error-container">
+      <Badge tone="wine" uppercase>
         Ended
-      </span>
+      </Badge>
     );
   }
   return (
-    <span className="px-2.5 py-0.5 rounded-pill font-label-sm text-label-sm uppercase bg-primary-fixed text-on-primary-fixed">
+    <Badge tone="success" uppercase dot>
       Live
-    </span>
+    </Badge>
   );
 }
 
@@ -119,13 +121,13 @@ export default function DashboardPage() {
   if (loading) {
     return (
         <div className="flex flex-col gap-space-lg" aria-busy="true">
-          <div className="h-24 bg-white rounded-xl border border-hairline shadow-hairline" />
+          <div className="h-24 bg-surface-container-lowest rounded-xl border border-hairline shadow-sm" />
         <div className="grid grid-cols-2 gap-space-sm">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-28 bg-white rounded-card border border-hairline shadow-hairline" />
+            <div key={i} className="h-28 bg-surface-container-lowest rounded-card border border-hairline shadow-sm" />
           ))}
         </div>
-        <div className="h-32 bg-white rounded-card border border-hairline shadow-hairline" />
+        <div className="h-32 bg-surface-container-lowest rounded-card border border-hairline shadow-sm" />
       </div>
     );
   }
@@ -148,10 +150,10 @@ export default function DashboardPage() {
   }
 
   const statCards = [
-    { label: 'Active Offers', value: stats?.activeOfferCount ?? 0, sub: `of ${stats?.offerCount ?? 0} total`, icon: Tag, tone: 'text-brand-amber bg-amber-50' },
-    { label: 'Branches', value: stats?.branchCount ?? 0, sub: 'locations', icon: Store, tone: 'text-on-surface-variant bg-surface-container-high' },
-    { label: 'Customers', value: stats?.customerCount ?? 0, sub: 'card holders', icon: Users, tone: 'text-brand-green bg-primary-fixed/60' },
-    { label: 'Stamps Collected', value: stats?.stampsCollected ?? 0, sub: `${stats?.totalRedeemed ?? 0} redeemed`, icon: Stamp, tone: 'text-brand-green bg-primary-fixed/60' },
+    { label: 'Active Offers', value: stats?.activeOfferCount ?? 0, sub: `of ${stats?.offerCount ?? 0} total`, icon: Tag, tone: 'text-brand-amber bg-brand-amber/10', pill: 'success' as const, pillLabel: 'Live' },
+    { label: 'Branches', value: stats?.branchCount ?? 0, sub: 'locations', icon: Store, tone: '', pill: 'neutral' as const, pillLabel: 'Hub' },
+    { label: 'Customers', value: stats?.customerCount ?? 0, sub: 'card holders', icon: Users, tone: '', pill: 'success' as const, pillLabel: 'Growing' },
+    { label: 'Stamps Collected', value: stats?.stampsCollected ?? 0, sub: `${stats?.totalRedeemed ?? 0} redeemed`, icon: Stamp, tone: '', pill: 'neutral' as const, pillLabel: 'Ready' },
   ];
 
   return (
@@ -179,28 +181,29 @@ export default function DashboardPage() {
         </div>
       </FadeUp>
 
-      {/* Stats */}
+      {/* Stats — Stitch KPI anatomy: icon tile + pill, metric, footer */}
       <Stagger className="grid grid-cols-2 gap-space-sm">
         {statCards.map((card) => {
           const Icon = card.icon;
           return (
             <Card key={card.label} className="p-3.5 flex flex-col justify-between gap-3">
-              <div className="flex items-center justify-between gap-2">
-                <span
-                  className={`inline-flex items-center justify-center w-9 h-9 rounded-lg ${card.tone}`}
-                >
+              <div className="flex items-start justify-between gap-2">
+                <IconTile className={card.tone}>
                   <Icon size={18} />
-                </span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant text-right">
-                  {card.sub}
-                </span>
+                </IconTile>
+                <Badge tone={card.pill}>{card.pillLabel}</Badge>
               </div>
               <div>
-                <p className="font-metric-num text-metric-num text-brand-green tabular-nums leading-none">
-                  {card.value}
-                </p>
+                <div className="flex items-baseline gap-2">
+                  <p className="font-metric-num text-metric-num text-on-surface tabular-nums leading-none">
+                    {card.value}
+                  </p>
+                </div>
                 <p className="font-label-md text-label-md text-on-surface-variant mt-1.5">
                   {card.label}
+                </p>
+                <p className="font-label-sm text-label-sm text-on-surface-variant mt-1">
+                  {card.sub}
                 </p>
               </div>
             </Card>
@@ -213,13 +216,13 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 gap-space-sm">
           <button
             onClick={() => router.push('/offers/new')}
-            className="min-h-[48px] flex items-center justify-center gap-2 px-4 rounded-lg bg-brand-red text-white text-sm font-semibold hover:bg-[#5C0F1B] active:bg-[#4A0C16] transition-colors shadow-inset-light focus:outline-none focus:ring-2 focus:ring-brand-red"
+            className="min-h-[48px] flex items-center justify-center gap-2 px-4 rounded-lg bg-brand-red text-white text-sm font-semibold hover:brightness-110 active:brightness-90 transition focus:outline-none focus:ring-2 focus:ring-brand-red"
           >
             <Plus className="w-4 h-4" /> Create Offer
           </button>
           <button
             onClick={() => router.push('/branches?new=1')}
-            className="min-h-[48px] flex items-center justify-center gap-2 px-4 rounded-lg bg-white border border-brand-border text-on-surface text-sm font-semibold hover:bg-primary-container/[0.04] transition-colors focus:outline-none focus:ring-2 focus:ring-brand-green"
+            className="min-h-[48px] flex items-center justify-center gap-2 px-4 rounded-lg bg-surface-container-lowest border border-brand-border text-on-surface text-sm font-semibold hover:bg-primary-container/[0.04] transition-colors focus:outline-none focus:ring-2 focus:ring-brand-green"
           >
             <MapPin className="w-4 h-4" /> Add Branch
           </button>

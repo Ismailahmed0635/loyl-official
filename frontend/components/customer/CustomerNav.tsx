@@ -33,7 +33,7 @@ export const CustomerNav: React.FC = () => {
   return (
     <>
       {/* Frosted top bar: brand + desktop top-nav (md+) */}
-      <header className="sticky top-0 z-40 bg-white/85 frost shadow-frost">
+      <header className="sticky top-0 z-40 bg-surface-container-lowest/85 frost shadow-frost">
         <div className="max-w-md mx-auto md:max-w-2xl lg:max-w-6xl px-4 h-14 md:h-16 flex items-center gap-3">
           <Link href="/stamp-card" className="flex items-center gap-2.5 shrink-0" aria-label="Loyl home">
             <span className="w-9 h-9 rounded-lg bg-brand-green text-white grid place-items-center shadow-inset-light">
@@ -81,7 +81,7 @@ export const CustomerNav: React.FC = () => {
 
       {/* Frosted mobile bottom-nav */}
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/90 frost shadow-frost pb-[env(safe-area-inset-bottom)]"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-surface-container-lowest/90 frost shadow-frost pb-[env(safe-area-inset-bottom)]"
         aria-label="Customer"
       >
         <div className="grid grid-cols-3 items-center h-16">

@@ -2,6 +2,9 @@
 
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { IconTile } from '@/components/ui/IconTile';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Input } from '@/components/ui/Input';
 import { FadeUp } from '@/components/animations/FadeUp';
 import { Stagger } from '@/components/animations/Stagger';
@@ -75,13 +78,11 @@ function StatCard({
         <p className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">
           {label}
         </p>
-        <span
-          className={`inline-flex items-center justify-center w-9 h-9 rounded-lg shrink-0 ${tone}`}
-        >
+        <IconTile size="sm" className={tone}>
           <Icon size={18} />
-        </span>
+        </IconTile>
       </div>
-      <p className="font-metric-num text-metric-num text-brand-green tabular-nums leading-none">
+      <p className="font-metric-num text-metric-num text-on-surface tabular-nums leading-none">
         {value}
       </p>
       <p className="font-body-sm text-body-sm text-on-surface-variant">{sub}</p>
@@ -108,10 +109,10 @@ function offerStats(offer: OfferPerformance): { label: string; value: number }[]
   ];
 }
 
-const OFFER_TYPE_PILL: Record<OfferPerformance['offerType'], { label: string; className: string }> = {
-  STAMP: { label: 'Stamp', className: 'bg-primary-fixed text-on-primary-fixed' },
-  SCRATCH: { label: 'Scratch', className: 'bg-amber-50 text-amber-700' },
-  DICE: { label: 'Dice', className: 'bg-indigo-50 text-indigo-700' },
+const OFFER_TYPE_PILL: Record<OfferPerformance['offerType'], { label: string; tone: 'success' | 'neutral' }> = {
+  STAMP: { label: 'Stamp', tone: 'success' },
+  SCRATCH: { label: 'Scratch', tone: 'neutral' },
+  DICE: { label: 'Dice', tone: 'neutral' },
 };
 
 export default function AnalyticsPage() {
@@ -168,22 +169,20 @@ export default function AnalyticsPage() {
   return (
     <div className="flex flex-col gap-space-lg">
       <FadeUp>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="font-headline-md text-headline-md text-on-surface">Analytics</h1>
-            <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-              Scans, new vs. returning customers, and reward performance over time.
-            </p>
-          </div>
-          <a
-            href={analyticsCsvUrl(range)}
-            download
-            className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-lg bg-surface-container-lowest border border-hairline shadow-hairline text-on-surface font-label-lg text-label-lg hover:bg-surface-container-low transition-colors focus:outline-none focus:ring-2 focus:ring-brand-green"
-            aria-label="Export the selected range as CSV"
-          >
-            <Download className="w-4 h-4 text-on-surface-variant" /> Export CSV
-          </a>
-        </div>
+        <PageHeader
+          title="Analytics"
+          meta="Scans, new vs. returning customers, and reward performance over time."
+          actions={
+            <a
+              href={analyticsCsvUrl(range)}
+              download
+              className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-lg bg-surface-container-lowest border border-hairline shadow-sm text-on-surface font-label-lg text-label-lg hover:bg-surface-container-low transition-colors focus:outline-none focus:ring-2 focus:ring-brand-green"
+              aria-label="Export the selected range as CSV"
+            >
+              <Download className="w-4 h-4 text-on-surface-variant" /> Export CSV
+            </a>
+          }
+        />
       </FadeUp>
 
       {/* Date range filter: presets + custom from/to */}
@@ -209,9 +208,9 @@ export default function AnalyticsPage() {
               </button>
             ))}
             {preset === null && (
-              <span className="px-2.5 py-1 rounded-pill font-label-sm text-label-sm uppercase bg-primary-fixed text-on-primary-fixed">
+              <Badge tone="success" uppercase>
                 Custom
-              </span>
+              </Badge>
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -258,9 +257,9 @@ export default function AnalyticsPage() {
       {loading && !error && (
         <div className="grid grid-cols-2 gap-space-sm" aria-busy="true">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-28 bg-surface-container-lowest rounded-card border border-hairline shadow-hairline" />
+            <div key={i} className="h-28 bg-surface-container-lowest rounded-card border border-hairline shadow-sm" />
           ))}
-          <div className="col-span-2 h-56 bg-surface-container-lowest rounded-card border border-hairline shadow-hairline" />
+          <div className="col-span-2 h-56 bg-surface-container-lowest rounded-card border border-hairline shadow-sm" />
         </div>
       )}
 
@@ -273,28 +272,28 @@ export default function AnalyticsPage() {
               value={totals.scans}
               sub={`${totals.reviewBonuses} review bonuses`}
               icon={QrCode}
-              tone="text-brand-green bg-primary-fixed/60"
+              tone="text-primary bg-surface-container"
             />
             <StatCard
               label="New Customers"
               value={totals.newCustomers}
               sub={`${totals.uniqueVisitors} unique visitors`}
               icon={Users}
-              tone="text-brand-green bg-primary-fixed/60"
+              tone="text-primary bg-surface-container"
             />
             <StatCard
               label="Returning"
               value={totals.returningCustomers}
               sub="active before this range"
               icon={RefreshCw}
-              tone="text-on-surface-variant bg-surface-container-high"
+              tone="text-on-surface-variant bg-surface-container"
             />
             <StatCard
               label="Rewards Redeemed"
               value={totals.redeems}
               sub={`${totals.redemptionRate}% redemption rate`}
               icon={Gift}
-              tone="text-brand-green bg-primary-fixed/60"
+              tone="text-primary bg-surface-container"
             />
           </Stagger>
 
@@ -372,11 +371,9 @@ export default function AnalyticsPage() {
                           <p className="font-headline-sm text-headline-sm text-on-surface truncate">
                             {offer.title}
                           </p>
-                          <span
-                            className={`px-2.5 py-1 rounded-pill font-label-sm text-label-sm uppercase shrink-0 ${pill.className}`}
-                          >
+                          <Badge tone={pill.tone} uppercase className="shrink-0">
                             {pill.label}
-                          </span>
+                          </Badge>
                         </div>
                         <div
                           className={`grid gap-2 text-center bg-surface-container-low rounded-lg p-3 ${

@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { QrCode, AlertCircle, Gift, Store } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { FadeUp } from '@/components/animations/FadeUp';
 import { StampGrid } from '@/components/customer/StampGrid';
@@ -63,9 +65,9 @@ export default function StampCardPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-4" aria-busy="true">
-        <div className="h-16 bg-surface-container-lowest rounded-xl border border-hairline shadow-hairline" />
+        <div className="h-16 bg-surface-container-lowest rounded-xl border border-hairline shadow-sm" />
         {[0, 1].map((i) => (
-          <div key={i} className="h-48 bg-surface-container-lowest rounded-xl border border-hairline shadow-hairline" />
+          <div key={i} className="h-48 bg-surface-container-lowest rounded-xl border border-hairline shadow-sm" />
         ))}
       </div>
     );
@@ -91,13 +93,12 @@ export default function StampCardPage() {
   return (
     <div className="flex flex-col gap-5">
       <FadeUp>
-        <div>
-          <h1 className="font-headline-md text-headline-md text-on-surface">Your Stamp Cards</h1>
-          <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
-            {totals.cards} {totals.cards === 1 ? 'shop' : 'shops'} · {totals.totalRedeemed}{' '}
-            {totals.totalRedeemed === 1 ? 'reward' : 'rewards'} earned
-          </p>
-        </div>
+        <PageHeader
+          title="Your Stamp Cards"
+          meta={`${totals.cards} ${totals.cards === 1 ? 'shop' : 'shops'} · ${totals.totalRedeemed} ${
+            totals.totalRedeemed === 1 ? 'reward' : 'rewards'
+          } earned`}
+        />
       </FadeUp>
 
       {cards.length === 0 ? (
@@ -126,7 +127,7 @@ export default function StampCardPage() {
               <Card className="p-5 flex flex-col gap-4">
                 {/* Shop header */}
                 <div className="flex items-center gap-3">
-                  <span className="inline-flex items-center justify-center w-10 h-10 rounded-input bg-primary-fixed text-brand-green shrink-0 overflow-hidden">
+                  <span className="inline-flex items-center justify-center w-10 h-10 rounded-input bg-surface-container text-primary shrink-0 overflow-hidden">
                     {c.logoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={c.logoUrl} alt="" className="w-10 h-10 rounded-input object-cover" />
@@ -143,13 +144,13 @@ export default function StampCardPage() {
                     </p>
                   </div>
                   {complete ? (
-                    <span className="px-2.5 py-1 rounded-pill bg-brand-amber/15 text-brand-amber font-label-sm text-label-sm uppercase tracking-wider shrink-0">
+                    <Badge tone="neutral" uppercase className="shrink-0 border border-brand-amber/40 bg-brand-amber/15 text-amber-800">
                       Reward ready!
-                    </span>
+                    </Badge>
                   ) : required !== null ? (
-                    <span className="px-2.5 py-1 rounded-pill bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider shrink-0">
+                    <Badge tone="neutral" uppercase className="shrink-0">
                       {stamps}/{required}
-                    </span>
+                    </Badge>
                   ) : null}
                 </div>
 

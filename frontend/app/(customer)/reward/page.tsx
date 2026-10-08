@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Gift, AlertCircle, Sparkles } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { FadeUp } from '@/components/animations/FadeUp';
 import { RewardModal } from '@/components/customer/RewardModal';
@@ -56,8 +57,8 @@ export default function RewardPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-4" aria-busy="true">
-        <div className="h-24 bg-surface-container-lowest rounded-xl border border-hairline shadow-hairline" />
-        <div className="h-32 bg-surface-container-lowest rounded-xl border border-hairline shadow-hairline" />
+        <div className="h-24 bg-surface-container-lowest rounded-xl border border-hairline shadow-sm" />
+        <div className="h-32 bg-surface-container-lowest rounded-xl border border-hairline shadow-sm" />
       </div>
     );
   }
@@ -88,11 +89,11 @@ export default function RewardPage() {
       {/* Totals */}
       <FadeUp>
         <Card className="p-5 flex items-center gap-4 shadow-ambient">
-          <span className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary-fixed text-brand-green shrink-0">
+          <span className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-surface-container text-primary shrink-0">
             <Gift className="w-6 h-6" />
           </span>
           <div>
-            <p className="font-metric-num text-metric-num text-brand-green tabular-nums leading-none">
+            <p className="font-metric-num text-metric-num text-on-surface tabular-nums leading-none">
               {totalRedeemed}
             </p>
             <p className="font-label-lg text-label-lg text-on-surface mt-1.5">
@@ -110,7 +111,7 @@ export default function RewardPage() {
           </h2>
           {ready.length === 0 ? (
             <Card className="p-4 flex items-start gap-3">
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-input bg-primary-fixed text-brand-green shrink-0">
+              <span className="inline-flex items-center justify-center w-9 h-9 rounded-input bg-surface-container text-primary shrink-0">
                 <Sparkles size={18} />
               </span>
               <div>
@@ -163,9 +164,9 @@ export default function RewardPage() {
                     {c.offer!.title}
                   </p>
                 </div>
-                <span className="px-2.5 py-1 rounded-pill bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm uppercase tracking-wider shrink-0">
+                <Badge tone="success" uppercase className="shrink-0">
                   {c.state.stampsCollected}/{c.offer!.requiredStamps}
-                </span>
+                </Badge>
               </Card>
             ))}
           </section>
@@ -182,12 +183,12 @@ export default function RewardPage() {
             {history.map((c) => (
               <div
                 key={c.merchantId}
-                className="flex items-center justify-between px-4 py-3 bg-surface-container-lowest rounded-card border border-hairline shadow-hairline"
+                className="flex items-center justify-between px-4 py-3 bg-surface-container-lowest rounded-card border border-hairline shadow-sm"
               >
                 <span className="font-body-md text-body-md text-on-surface truncate">
                   {c.businessName}
                 </span>
-                <span className="font-label-sm text-label-sm uppercase tracking-wider text-brand-green shrink-0 ml-3">
+                <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary shrink-0 ml-3">
                   {c.state.totalRedeemed}× redeemed
                 </span>
               </div>

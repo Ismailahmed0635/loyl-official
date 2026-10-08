@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { FadeUp } from '@/components/animations/FadeUp';
 import { Stagger } from '@/components/animations/Stagger';
@@ -120,21 +122,18 @@ export default function RequestsPage() {
   return (
     <div className="flex flex-col gap-space-lg">
       <FadeUp>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="font-headline-md text-headline-md text-on-surface">Stamp Requests</h1>
-            <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-              Every scan waits here for your confirmation. Accept it to give the stamp — or just
-              hold it. You can never reject a customer.
-            </p>
-          </div>
-          {pendingCount > 0 && (
-            <span className="inline-flex items-center gap-1 px-3 min-h-[32px] rounded-pill font-label-sm text-label-sm uppercase bg-brand-red text-white shrink-0">
-              <BellRing className="w-3.5 h-3.5" />
-              {pendingCount} waiting
-            </span>
-          )}
-        </div>
+        <PageHeader
+          title="Stamp Requests"
+          meta="Every scan waits here for your confirmation. Accept it to give the stamp — or just hold it. You can never reject a customer."
+          actions={
+            pendingCount > 0 ? (
+              <Badge tone="wine" uppercase>
+                <BellRing className="w-3.5 h-3.5" />
+                {pendingCount} waiting
+              </Badge>
+            ) : undefined
+          }
+        />
       </FadeUp>
 
       {/* Tabs + manual refresh */}
@@ -218,7 +217,7 @@ export default function RequestsPage() {
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="h-28 bg-surface-container-lowest rounded-card border border-hairline shadow-hairline"
+              className="h-28 bg-surface-container-lowest rounded-card border border-hairline shadow-sm"
             />
           ))}
         </div>
@@ -246,8 +245,8 @@ export default function RequestsPage() {
                   <span
                     className={`w-9 h-9 rounded-full grid place-items-center shrink-0 ${
                       row.status === 'PENDING'
-                        ? 'bg-surface-container-high text-on-surface-variant'
-                        : 'bg-primary-fixed/60 text-brand-green'
+                        ? 'bg-surface-container text-on-surface-variant'
+                        : 'bg-primary-fixed text-on-primary-fixed'
                     }`}
                   >
                     {row.status === 'PENDING' ? <BellRing size={18} /> : <Check size={18} />}

@@ -95,4 +95,20 @@ describe('backend/firebase phone mapping', () => {
     }
     expect(codes).toContain('auth/argument-error');
   });
+
+  it('resolves jwks-rsa -> jose through a require()-able CJS build', async () => {
+    // Regression: firebase-admin -> jwks-rsa declares jose@^6, which is
+    // `"type":"module"` with NO `require` condition. Vercel's runtime rejects
+    // require(esm) (local Node 24 allows it, so dev never showed it), killing
+    // EVERY real sign-in with ERR_REQUIRE_ESM -> 401 INVALID_FIREBASE_TOKEN.
+    // The `jose` override pins v5 (dual CJS/ESM): assert the resolution
+    // jwks-rsa actually performs stays on a CommonJS file.
+    const path = await import('node:path');
+    const { createRequire } = await import('node:module');
+    const req = createRequire(path.join(process.cwd(), 'node_modules/jwks-rsa/src/utils.js'));
+    const resolved = req.resolve('jose');
+    expect(resolved.replace(/\\/g, '/')).toMatch(/\/dist\/node\/cjs\/index\.js$/);
+    // And the call must be loadable the way jwks-rsa loads it: require().
+    expect(() => req('jose')).not.toThrow();
+  });
 });

@@ -29,9 +29,25 @@ interface AdminApp {
   name?: string;
 }
 
+/** The subset of the firebase-admin namespace this module uses. */
+interface AdminNamespace {
+  apps?: AdminApp[];
+  initializeApp: (options: Record<string, unknown>) => AdminApp;
+  credential: { cert: (options: Record<string, unknown>) => unknown };
+}
+
+/** The subset of `firebase-admin/auth` this module uses. */
+interface AuthNamespace {
+  getAuth: (app: AdminApp) => {
+    verifyIdToken: (idToken: string) => Promise<Record<string, unknown>>;
+  };
+}
+
 const globalAdmin = globalThis as unknown as {
   __loylFirebaseAdmin?: AdminApp | null;
   __loylFirebaseAdminError?: string;
+  /** In-flight init — concurrent first requests share one import. */
+  __loylFirebaseAdminInit?: Promise<AdminApp | null>;
 };
 
 /** Upper bound for one Admin SDK verification (public-certs fetch included). */
@@ -66,7 +82,31 @@ export function isFirebaseAdminWriteConfigured(): boolean {
   );
 }
 
-function getAdminApp(): AdminApp | null {
+/**
+ * firebase-admin ships dual CJS/ESM (`exports` with `require`/`import`
+ * conditions). A bundler evaluating this module in ESM context resolves the
+ * `import` condition to `lib/esm/*`, whose `lib/esm/package.json` declares
+ * `"type": "module"` — a runtime `require()` of that path throws
+ * `ERR_REQUIRE_ESM`, which used to surface as a blanket 401
+ * `INVALID_FIREBASE_TOKEN` for every production sign-in (local `next dev`
+ * resolved the CJS path, so the failure was Vercel-only). Dynamic `import()`
+ * is the one form both resolvers accept.
+ */
+async function loadAdminNamespace(): Promise<AdminNamespace> {
+  const mod = (await import('firebase-admin')) as unknown as {
+    default?: AdminNamespace;
+  } & AdminNamespace;
+  return mod.default ?? mod;
+}
+
+async function loadAuthNamespace(): Promise<AuthNamespace> {
+  const mod = (await import('firebase-admin/auth')) as unknown as {
+    default?: AuthNamespace;
+  } & AuthNamespace;
+  return mod.default ?? mod;
+}
+
+async function getAdminApp(): Promise<AdminApp | null> {
   if (globalAdmin.__loylFirebaseAdmin !== undefined) {
     return globalAdmin.__loylFirebaseAdmin;
   }
@@ -74,18 +114,22 @@ function getAdminApp(): AdminApp | null {
     globalAdmin.__loylFirebaseAdmin = null;
     return null;
   }
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const admin = require('firebase-admin');
-    if (admin.apps?.length) {
-      globalAdmin.__loylFirebaseAdmin = admin.apps[0] as AdminApp;
-      return globalAdmin.__loylFirebaseAdmin;
-    }
-    // Verify-only init needs no secret (ID-token checks use Google's public
-    // certs); attach full credentials only when a real private key is set.
-    const privateKey = getPrivateKey();
-    const app = (
-      privateKey
+  // Share one init across concurrent first requests (import + initializeApp
+  // are not idempotent across interleaved callers).
+  if (globalAdmin.__loylFirebaseAdminInit) {
+    return globalAdmin.__loylFirebaseAdminInit;
+  }
+  const init = (async () => {
+    try {
+      const admin = await loadAdminNamespace();
+      if (admin.apps?.length) {
+        globalAdmin.__loylFirebaseAdmin = admin.apps[0];
+        return globalAdmin.__loylFirebaseAdmin;
+      }
+      // Verify-only init needs no secret (ID-token checks use Google's public
+      // certs); attach full credentials only when a real private key is set.
+      const privateKey = getPrivateKey();
+      const app = privateKey
         ? admin.initializeApp({
             credential: admin.credential.cert({
               projectId: process.env.FIREBASE_PROJECT_ID,
@@ -94,15 +138,17 @@ function getAdminApp(): AdminApp | null {
             }),
             projectId: process.env.FIREBASE_PROJECT_ID,
           })
-        : admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID })
-    ) as AdminApp;
-    globalAdmin.__loylFirebaseAdmin = app;
-    return app;
-  } catch (err) {
-    globalAdmin.__loylFirebaseAdminError = err instanceof Error ? err.message : String(err);
-    globalAdmin.__loylFirebaseAdmin = null;
-    return null;
-  }
+        : admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID });
+      globalAdmin.__loylFirebaseAdmin = app;
+      return app;
+    } catch (err) {
+      globalAdmin.__loylFirebaseAdminError = err instanceof Error ? err.message : String(err);
+      globalAdmin.__loylFirebaseAdmin = null;
+      return null;
+    }
+  })();
+  globalAdmin.__loylFirebaseAdminInit = init;
+  return init;
 }
 
 /**
@@ -130,7 +176,7 @@ export function localPhoneToE164(local: string): string | null {
  * rejects with a coded error instead of hanging the session-mint request.
  */
 export async function verifyFirebaseIdToken(idToken: string): Promise<FirebaseDecodedUser | null> {
-  const app = getAdminApp();
+  const app = await getAdminApp();
   if (!app) {
     console.warn(
       'verifyFirebaseIdToken: Admin app unavailable',
@@ -143,8 +189,7 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<FirebaseDe
     // Modular API: firebase-admin v14 removed the legacy `app.auth()` method —
     // calling it throws `app.auth is not a function`, which used to surface
     // as a blanket INVALID_FIREBASE_TOKEN for every real sign-in.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { getAuth } = require('firebase-admin/auth');
+    const { getAuth } = await loadAuthNamespace();
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
         const err = new Error('Firebase verification timed out') as Error & { code?: string };
@@ -188,7 +233,10 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<FirebaseDe
       typeof err === 'object' && err !== null && 'code' in err
         ? String((err as { code: unknown }).code)
         : 'unknown';
-    console.warn('verifyFirebaseIdToken: verification failed', code);
+    // Message is diagnostic only — truncated, and never the token (the SDK
+    // error messages carry module paths/claims, not the raw JWT).
+    const msg = err instanceof Error ? err.message.slice(0, 300) : String(err).slice(0, 300);
+    console.warn('verifyFirebaseIdToken: verification failed', code, '|', msg);
     return null;
   } finally {
     if (timer) clearTimeout(timer);

@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { LogoUpload } from '@/components/merchant/LogoUpload';
 import { FadeUp } from '@/components/animations/FadeUp';
 import type { SettingsResponse } from '@/lib/api/merchant';
-import { getSettings, updateSettings } from '@/lib/api/merchant';
+import { getSettings, updateSettings, displayLogoUrl, uploadLogo, removeLogo } from '@/lib/api/merchant';
 import { useQuery, prime } from '@/lib/api/cache';
 import { BUSINESS_CATEGORIES } from '@/lib/constants';
 import { AlertCircle, CheckCircle2, MapPin, Phone, Save } from 'lucide-react';
@@ -18,7 +19,6 @@ import { AlertCircle, CheckCircle2, MapPin, Phone, Save } from 'lucide-react';
 interface FormValues {
   businessName: string;
   category: string;
-  logoUrl: string;
   websiteUrl: string;
   facebookUrl: string;
   instagramUrl: string;
@@ -27,13 +27,12 @@ interface FormValues {
 const EMPTY_FORM: FormValues = {
   businessName: '',
   category: BUSINESS_CATEGORIES[0],
-  logoUrl: '',
   websiteUrl: '',
   facebookUrl: '',
   instagramUrl: '',
 };
 
-const URL_KEYS: Array<keyof FormValues> = ['logoUrl', 'websiteUrl', 'facebookUrl', 'instagramUrl'];
+const URL_KEYS: Array<keyof FormValues> = ['websiteUrl', 'facebookUrl', 'instagramUrl'];
 
 function isValidOptionalUrl(value: string): boolean {
   if (!value.trim()) return true;
@@ -100,7 +99,6 @@ export default function SettingsPage() {
       return {
         businessName: m.businessName,
         category: m.category,
-        logoUrl: m.logoUrl ?? '',
         websiteUrl: m.websiteUrl ?? '',
         facebookUrl: m.facebookUrl ?? '',
         instagramUrl: m.instagramUrl ?? '',
@@ -123,7 +121,7 @@ export default function SettingsPage() {
     }
     for (const key of URL_KEYS) {
       if (!isValidOptionalUrl(form[key])) {
-        setFormError(`${key === 'logoUrl' ? 'Logo' : key === 'websiteUrl' ? 'Website' : key === 'facebookUrl' ? 'Facebook' : 'Instagram'} link must be a valid URL (or empty)`);
+        setFormError(`${key === 'websiteUrl' ? 'Website' : key === 'facebookUrl' ? 'Facebook' : 'Instagram'} link must be a valid URL (or empty)`);
         return;
       }
     }
@@ -133,7 +131,6 @@ export default function SettingsPage() {
       const res = await updateSettings({
         businessName,
         category: form.category.trim(),
-        logoUrl: form.logoUrl.trim(),
         websiteUrl: form.websiteUrl.trim(),
         facebookUrl: form.facebookUrl.trim(),
         instagramUrl: form.instagramUrl.trim(),
@@ -242,12 +239,12 @@ export default function SettingsPage() {
               </select>
             </div>
 
-            <Input
-              label="Logo URL"
-              placeholder="https://example.com/logo.png"
-              value={form.logoUrl}
-              onChange={(e) => setForm((f) => ({ ...f, logoUrl: e.target.value }))}
-              helperText="Cloudinary or web URL of your brand logo"
+            <LogoUpload
+              merchant={merchant}
+              onChanged={(m) => {
+                setMerchant(m);
+                writeSettingsCache({ merchant: m });
+              }}
             />
 
             <p className="font-headline-sm text-headline-sm text-on-surface pt-1">Social Links</p>

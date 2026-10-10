@@ -16,6 +16,7 @@ const RUN = Date.now().toString(36);
 const EMAIL = `smoke1-${RUN}@example.com`;
 const EMAIL2 = `smoke1b-${RUN}@example.com`;
 const PHONE = '017' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+const PHONE_STRIP = '017' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
 
 let passed = 0;
 let failed = 0;
@@ -105,8 +106,8 @@ async function main() {
   const badSetup = await call('/api/auth/business-setup', { method: 'POST', cookie: preCookie, body: { businessName: 'A', category: '', phoneNumber: 'nope' } });
   check('business-setup with invalid payload -> 422', badSetup.status === 422, `status ${badSetup.status}`);
 
-  const badLogo = await call('/api/auth/business-setup', { method: 'POST', cookie: preCookie, body: { businessName: 'Crimson Cup', category: 'Café & Bakery', phoneNumber: PHONE, logoUrl: 'not-a-url' } });
-  check('business-setup rejects malformed logo URL -> 422', badLogo.status === 422, `status ${badLogo.status}`);
+  const badLogo = await call('/api/auth/business-setup', { method: 'POST', cookie: preCookie, body: { businessName: 'Crimson Cup', category: 'Café & Bakery', phoneNumber: PHONE_STRIP, logoUrl: 'not-a-url' } });
+  check('business-setup strips logoUrl (file upload lives in Settings) -> 200, logoUrl null', badLogo.status === 200 && badLogo.json?.data?.merchant?.logoUrl === null, `status ${badLogo.status}`);
 
   // --- happy path (email-keyed, phone collected) ------------------------------
   const { cookie, merchant } = await signUpMerchant(

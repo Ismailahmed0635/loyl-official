@@ -73,6 +73,10 @@ model Merchant {
   /// Collected contact data — never verified, never an identity.
   phoneNumber           String             @unique
   logoUrl               String?
+  /// Stored merchant logo filename (bare name in the merchant-logos store).
+  /// When set, the public URL is `/api/public/logo/<merchantId>`; `logoUrl`
+  /// above is the legacy externally-hosted fallback.
+  logoPath              String?
   /// Phase 4 (LOYLS §6): social links shown on the merchant profile.
   websiteUrl            String?
   facebookUrl           String?

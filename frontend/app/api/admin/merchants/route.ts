@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from '@/backend/api/response';
 import { withAdmin } from '@/backend/api/handler';
 import { adminMerchantListQuerySchema } from '@/backend/validation/schemas';
 import { groupByCount } from '@/backend/admin';
+import { merchantLogoUrl } from '@/backend/logo';
 import { db } from '@/backend/db';
 
 /** Public merchant fields (no cognitoSub) returned to the admin. */
@@ -13,6 +14,7 @@ const MERCHANT_ROW_SELECT = {
   category: true,
   phoneNumber: true,
   logoUrl: true,
+  logoPath: true,
   websiteUrl: true,
   subscriptionStatus: true,
   subscriptionExpiresAt: true,
@@ -80,7 +82,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
   for (const group of statusGroups) byStatus[group.subscriptionStatus] = groupByCount(group._count);
 
   return apiSuccess({
-    merchants: rows.map((m) => ({ ...m, suspended: !!m.deletedAt })),
+    merchants: rows.map((m) => ({ ...m, logoUrl: merchantLogoUrl(m), suspended: !!m.deletedAt })),
     pagination: {
       page,
       pageSize,

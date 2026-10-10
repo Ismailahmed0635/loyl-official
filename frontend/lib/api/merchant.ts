@@ -36,7 +36,7 @@ export interface StatsResponse {
 
 export interface OfferQrResponse {
   offer: OfferWithItems;
-  merchant: Pick<Merchant, 'id' | 'businessName' | 'category' | 'logoUrl' | 'phoneNumber'>;
+  merchant: Pick<Merchant, 'id' | 'businessName' | 'category' | 'logoUrl' | 'logoPath' | 'phoneNumber'>;
   scanUrl: string;
   qrDataUrl: string;
 }
@@ -259,6 +259,35 @@ export async function getSettings() {
 
 export async function updateSettings(data: UpdateSettingsInput) {
   const res = await request('/api/merchant/settings', json('PATCH', data));
+  if (res?.success) invalidateReads('settings');
+  return res;
+}
+
+/**
+ * Display URL for a merchant's logo: the uploaded file wins, the legacy
+ * external logoUrl stays as fallback. Mirrors backend merchantLogoUrl —
+ * keep the two in sync.
+ */
+export function displayLogoUrl(
+  merchant: { id: string; logoPath?: string | null; logoUrl?: string | null } | null | undefined
+): string | null {
+  if (!merchant) return null;
+  if (merchant.logoPath) return `/api/public/logo/${merchant.id}`;
+  return merchant.logoUrl ?? null;
+}
+
+/** Multipart logo upload from the gallery/camera (field name: `logo`). */
+export async function uploadLogo(file: File) {
+  const form = new FormData();
+  form.append('logo', file);
+  const res = await request('/api/merchant/logo', { method: 'POST', body: form });
+  if (res?.success) invalidateReads('settings');
+  return res;
+}
+
+/** Removes the uploaded logo; the merchant falls back to no logo. */
+export async function removeLogo() {
+  const res = await request('/api/merchant/logo', { method: 'DELETE' });
   if (res?.success) invalidateReads('settings');
   return res;
 }

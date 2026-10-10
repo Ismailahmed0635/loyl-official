@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withMerchant } from '@/backend/api/handler';
+import { merchantLogoUrl } from '@/backend/logo';
 import { db } from '@/backend/db';
 import { buildScanUrl, generateQrDataUrl, resolveRequestOrigin } from '@/lib/poster';
 
@@ -27,7 +28,7 @@ export const GET = withMerchant(async (req: NextRequest, session, merchant, { pa
         id: merchant.id,
         businessName: merchant.businessName,
         category: merchant.category,
-        logoUrl: merchant.logoUrl,
+        logoUrl: merchantLogoUrl(merchant),
         phoneNumber: merchant.phoneNumber,
       },
       scanUrl,

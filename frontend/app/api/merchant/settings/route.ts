@@ -30,11 +30,11 @@ export const PATCH = withMerchant(async (req: NextRequest, session, merchant) =>
       return apiError(issue, 'VALIDATION_ERROR', 422);
     }
 
-    const { businessName, category, logoUrl, websiteUrl, facebookUrl, instagramUrl } = parsed.data;
+    const { businessName, category, websiteUrl, facebookUrl, instagramUrl } = parsed.data;
     const data: Record<string, string | null> = {};
     if (businessName !== undefined) data.businessName = businessName;
     if (category !== undefined) data.category = category;
-    const urls = { logoUrl, websiteUrl, facebookUrl, instagramUrl };
+    const urls = { websiteUrl, facebookUrl, instagramUrl };
     for (const [key, value] of Object.entries(urls)) {
       const next = urlOrNull(value);
       if (next !== undefined) data[key] = next;

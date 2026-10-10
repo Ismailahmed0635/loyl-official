@@ -465,7 +465,7 @@ async function main() {
     ['too-short business name', { businessName: 'X' }],
     ['blank category', { category: '' }],
     ['non-http(s) social link', { websiteUrl: 'ftp://example.com' }],
-    ['malformed URL', { logoUrl: 'not-a-url' }],
+    ['malformed website URL', { websiteUrl: 'not-a-url' }],
   ];
   for (const [label, body] of patchValidations) {
     const r = await call('/api/merchant/settings', { method: 'PATCH', cookie: merchant, body });
@@ -481,7 +481,6 @@ async function main() {
       websiteUrl: 'https://example.com',
       facebookUrl: 'https://facebook.com/phase4loyl',
       instagramUrl: '',
-      logoUrl: '',
     },
   });
   const patched = patch.json?.data?.merchant;
@@ -514,6 +513,59 @@ async function main() {
     clear.status === 200 && clear.json.data.merchant.websiteUrl === null,
     `status ${clear.status}`
   );
+
+  // --- G2. Logo upload (gallery file, replaces the old logoUrl field) --------
+  const PNG_1X1 = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64'
+  );
+  async function uploadLogo(bytes, type, filename) {
+    const form = new FormData();
+    form.append('logo', new Blob([bytes], { type }), filename);
+    const res = await fetch(BASE + '/api/merchant/logo', {
+      method: 'POST',
+      headers: { Cookie: merchant },
+      body: form,
+      redirect: 'manual',
+    });
+    let json = null;
+    try {
+      json = await res.json();
+    } catch {
+      /* non-JSON */
+    }
+    return { status: res.status, json };
+  }
+  const badLogo = await uploadLogo(Buffer.from('not an image'), 'image/png', 'evil.png');
+  check(
+    'Logo upload rejects polyglot bytes -> 422 INVALID_FILE_TYPE',
+    badLogo.status === 422 && badLogo.json?.error?.code === 'INVALID_FILE_TYPE',
+    `status ${badLogo.status}, code ${badLogo.json?.error?.code}`
+  );
+  const logoUp = await uploadLogo(PNG_1X1, 'image/png', 'logo.png');
+  check(
+    'Logo upload (PNG) -> 201 with public logoUrl',
+    logoUp.status === 201 &&
+      typeof logoUp.json?.data?.logoUrl === 'string' &&
+      logoUp.json.data.logoUrl.startsWith('/api/public/logo/'),
+    `status ${logoUp.status}`
+  );
+  const ownLogo = await fetch(BASE + '/api/merchant/logo', {
+    headers: { Cookie: merchant },
+    redirect: 'manual',
+  });
+  check(
+    'Own logo streams back -> 200 image/png',
+    ownLogo.status === 200 && (ownLogo.headers.get('content-type') || '').includes('image/png'),
+    `status ${ownLogo.status}`
+  );
+  const logoDel = await call('/api/merchant/logo', { method: 'DELETE', cookie: merchant });
+  check('Logo DELETE removes it', logoDel.status === 200, `status ${logoDel.status}`);
+  const logoGone = await fetch(BASE + '/api/merchant/logo', {
+    headers: { Cookie: merchant },
+    redirect: 'manual',
+  });
+  check('Logo GET after delete -> 404', logoGone.status === 404, `status ${logoGone.status}`);
 
   // --- G. Auth lockdown -----------------------------------------------------
   for (const route of ['/api/merchant/analytics', '/api/merchant/customers', '/api/merchant/settings']) {

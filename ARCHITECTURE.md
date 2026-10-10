@@ -33,11 +33,12 @@ The platform follows a modern, serverless Client-Server architecture utilizing N
 6. **Finalize:** The generated Cloudinary URL is saved to the `offers` table in Supabase.
 
 #### 3.3 Customer Scan & Stamp Flow
-1. **Scan & Authenticate:** Customer scans the printed QR code and signs in with name + phone number (collected, no verification step).
-2. **Location Verification:** Browser's `navigator.geolocation` fetches current coordinates and sends them alongside the scan request.
-3. **Validation & Update:** `POST /api/customer/scan` checks cooldown rules, validates GPS proximity to the `branches` data, and increments the stamp count in the `customer_stamps` table.
-4. **Reward Trigger:** If the target stamp count is reached, the backend sends a success flag, triggering the animated 2x2 reward pop-up on the frontend.
-5. **Review & socials:** `/scan/[offerId]` renders the shared `ShopLinks` card under **every** offer type (stamp,
+1. **Scan & Authenticate:** Customer scans the printed QR code. Name + phone are collected **once per device** — the identity is persisted in `localStorage` (`loyl.customer.identity.v1`, `frontend/lib/customerIdentity.ts`) and auto-resumed on every later scan, so a returning customer signs in without retyping. Only a nameless session with an `offer`/`next` param re-opens the sign-in form; merchants/admins are never resumed into the customer identity.
+2. **Location Verification:** Browser's `navigator.geolocation` fetches current coordinates and sends them alongside the scan request. The stored phone is sent on **every** scan, so each check-in is tracked even though the form is not re-shown.
+3. **Validation & Approval:** `POST /api/customer/scan` checks cooldown rules and GPS proximity to the `branches` data, then creates a **PENDING `ScanRequest`** — it never stamps instantly (Phase 9). The stamp lands in `customer_stamps` only when the merchant approves from the app with a device-bound Ed25519 proof (Phase 10; the web `/requests` page reviews/holds only).
+4. **Merchant visibility:** `/requests` polls every 8s and badges the nav so the pending request is seen, and `GET /api/merchant/customers` returns the merged `CustomerStamp` ∪ `ScanRequest` view (name, phone, total scans, pending count) — no schema change.
+5. **Reward Trigger:** If the target stamp count is reached, the backend sends a success flag, triggering the animated 2x2 reward pop-up on the frontend.
+6. **Review & socials:** `/scan/[offerId]` renders the shared `ShopLinks` card under **every** offer type (stamp,
 scratch, dice): a Google review button — driving the PRD 3.3 open-Maps → bonus-stamp claim on stamp offers, a plain
 Maps link elsewhere — plus the merchant's Website/Facebook/Instagram links from Settings → Social Links, served by
 the customer context GET (`websiteUrl`/`facebookUrl`/`instagramUrl`) and hidden when unset.

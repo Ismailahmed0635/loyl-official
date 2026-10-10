@@ -525,10 +525,13 @@ describe('Phase 4 Settings Schema', () => {
       updateSettingsSchema.safeParse({
         businessName: 'Crimson Cup',
         category: 'Café & Bakery',
-        logoUrl: 'https://cdn.example.com/logo.png',
         facebookUrl: 'https://facebook.com/crimsoncup',
         instagramUrl: 'https://instagram.com/crimsoncup',
       }).success
+    ).toBe(true);
+    // Logo moved to file upload — a stray logoUrl is stripped, not stored.
+    expect(
+      updateSettingsSchema.safeParse({ businessName: 'Crimson Cup', logoUrl: 'https://cdn.example.com/logo.png' }).success
     ).toBe(true);
   });
 
@@ -539,9 +542,6 @@ describe('Phase 4 Settings Schema', () => {
     expect(updateSettingsSchema.safeParse({ category: '' }).success).toBe(false);
     expect(updateSettingsSchema.safeParse({ websiteUrl: 'not-a-url' }).success).toBe(false);
     expect(updateSettingsSchema.safeParse({ instagramUrl: 'ftp://example.com' }).success).toBe(false);
-    expect(
-      updateSettingsSchema.safeParse({ logoUrl: 'https://example.com/' + 'x'.repeat(300) }).success
-    ).toBe(false);
   });
 });
 

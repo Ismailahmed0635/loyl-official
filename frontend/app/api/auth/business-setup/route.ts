@@ -42,7 +42,7 @@ export const POST = withAuth(async (req: NextRequest, session) => {
       );
     }
 
-    const { businessName, category, phoneNumber, logoUrl } = validation.data;
+    const { businessName, category, phoneNumber } = validation.data;
     const cleanPhone = phoneNumber.replace(/^\+88/, '');
 
     let merchant;
@@ -53,7 +53,6 @@ export const POST = withAuth(async (req: NextRequest, session) => {
           businessName,
           category,
           phoneNumber: cleanPhone,
-          logoUrl: logoUrl || null,
           ...(session.cognitoSub ? { cognitoSub: session.cognitoSub } : {}),
           ...(session.firebaseUid ? { firebaseUid: session.firebaseUid } : {}),
         },
@@ -62,7 +61,6 @@ export const POST = withAuth(async (req: NextRequest, session) => {
           businessName,
           category,
           phoneNumber: cleanPhone,
-          logoUrl: logoUrl || null,
           cognitoSub: session.cognitoSub ?? null,
           firebaseUid: session.firebaseUid ?? null,
           subscriptionStatus: 'PENDING',

@@ -34,6 +34,7 @@ import path from 'node:path';
 /** Bucket (Supabase) / directory name (local) per artifact kind. */
 export const BUCKET_PAYMENT_SCREENSHOTS = 'payment-screenshots';
 export const BUCKET_MENU_PHOTOS = 'menu-photos';
+export const BUCKET_MERCHANT_LOGOS = 'merchant-logos';
 
 /** Every storage request is bounded so a hung Supabase call cannot eat a
  * serverless function's whole budget (vision already caps itself at 45s). */

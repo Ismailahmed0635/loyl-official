@@ -12,6 +12,7 @@ import {
 import { buildScratchState, findLastScratchResult } from '@/backend/scratch';
 import { buildDiceState, findLastDiceRoll, normalizeDiceCount } from '@/backend/dice';
 import { isGeoRequired } from '@/backend/geo';
+import { merchantLogoUrl } from '@/backend/logo';
 import { db } from '@/backend/db';
 
 /**
@@ -99,7 +100,8 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
         id: offer.merchant.id,
         businessName: offer.merchant.businessName,
         category: offer.merchant.category,
-        logoUrl: offer.merchant.logoUrl,
+        // Uploaded file wins; legacy external logoUrl stays as fallback.
+        logoUrl: merchantLogoUrl(offer.merchant),
         // Public marketing links (Settings → social links): the offer page
         // shows them so a customer can follow the shop after their roll/scratch.
         websiteUrl: offer.merchant.websiteUrl,

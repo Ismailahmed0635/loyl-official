@@ -93,7 +93,6 @@ export const businessSetupSchema = z.object({
   businessName: z.string().trim().min(2, { message: 'Business name must be at least 2 characters' }),
   category: z.string().trim().min(1, { message: 'Please select a business category' }),
   phoneNumber: phoneSchema,
-  logoUrl: z.string().url({ message: 'Invalid logo URL' }).optional().or(z.literal('')),
 });
 
 // --- Phase 2: Merchant Core -------------------------------------------------
@@ -733,7 +732,6 @@ export const updateSettingsSchema = z
       .min(1, { message: 'Please select a business category' })
       .max(60, { message: 'Category must be 60 characters or fewer' })
       .optional(),
-    logoUrl: optionalUrlSchema,
     websiteUrl: optionalUrlSchema,
     facebookUrl: optionalUrlSchema,
     instagramUrl: optionalUrlSchema,

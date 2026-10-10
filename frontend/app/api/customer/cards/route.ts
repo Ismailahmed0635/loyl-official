@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withCustomer } from '@/backend/api/handler';
 import { buildCardState, CardState } from '@/backend/scan';
+import { merchantLogoUrl } from '@/backend/logo';
 import { db } from '@/backend/db';
 
 interface OfferSummary {
@@ -39,7 +40,7 @@ export const GET = withCustomer(async (req: NextRequest, session, customerPhone)
       where: { customerPhone, deletedAt: null },
       include: {
         merchant: {
-          select: { id: true, businessName: true, category: true, logoUrl: true, deletedAt: true },
+          select: { id: true, businessName: true, category: true, logoUrl: true, logoPath: true, deletedAt: true },
         },
       },
       orderBy: { updatedAt: 'desc' },
@@ -71,7 +72,7 @@ export const GET = withCustomer(async (req: NextRequest, session, customerPhone)
         merchantId: row.merchantId,
         businessName: row.merchant.businessName,
         category: row.merchant.category,
-        logoUrl: row.merchant.logoUrl,
+        logoUrl: merchantLogoUrl(row.merchant),
         offer: offer
           ? {
               id: offer.id,

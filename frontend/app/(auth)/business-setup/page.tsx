@@ -35,7 +35,6 @@ function BusinessSetupContent() {
   // their real phone (the old '01712345678' default was submitted as-is and
   // then rejected by the PHONE_MISMATCH guard).
   const [phoneNumber, setPhoneNumber] = useState(phoneParam);
-  const [logoUrl, setLogoUrl] = useState('');
   const [loading, setLoading] = useState(false);
   // Per-field errors: a server/client failure must render under the input it
   // belongs to (PHONE_TAKEN under phone, never under business name).
@@ -43,7 +42,6 @@ function BusinessSetupContent() {
   const [fieldErrors, setFieldErrors] = useState<{
     businessName?: string;
     phoneNumber?: string;
-    logoUrl?: string;
   }>({});
   const [formError, setFormError] = useState('');
 
@@ -70,7 +68,6 @@ function BusinessSetupContent() {
         businessName: businessName.trim(),
         category,
         phoneNumber: phoneNumber.trim(),
-        logoUrl: logoUrl.trim() || undefined,
       });
 
       if (res.success) {
@@ -85,7 +82,6 @@ function BusinessSetupContent() {
           // 422s carry only a message — route it by content.
           if (/business name/i.test(message)) setFieldErrors({ businessName: message });
           else if (/phone/i.test(message)) setFieldErrors({ phoneNumber: message });
-          else if (/logo/i.test(message)) setFieldErrors({ logoUrl: message });
           else setFormError(message);
         } else {
           setFormError(message);
@@ -172,18 +168,6 @@ function BusinessSetupContent() {
               }}
               error={fieldErrors.phoneNumber}
               required
-            />
-
-            <Input
-              label="Logo URL (Optional)"
-              placeholder="https://example.com/logo.png"
-              value={logoUrl}
-              onChange={(e) => {
-                setLogoUrl(e.target.value);
-                if (fieldErrors.logoUrl) setFieldErrors((p) => ({ ...p, logoUrl: undefined }));
-              }}
-              error={fieldErrors.logoUrl}
-              helperText="Cloudinary or web URL of your brand logo"
             />
 
             {formError && (

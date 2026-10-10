@@ -38,6 +38,41 @@ const DEFAULT_PAGE_SIZE = 20;
  */
 const CUSTOMER_MERGE_LIMIT = 10_000;
 
+/**
+ * The `customerName` columns on the instant-reward tables are newer than the
+ * tables themselves. A deployment can reach production before its migration
+ * runs — and on that window every `select: { customerName }` throws P2022 and
+ * the whole list 500s ("Failed to load customers"). So the route probes
+ * `information_schema` once per server instance and simply reads the reward
+ * tables without the name until the migration lands. No masking: a genuinely
+ * broken reward query still throws and still 500s; only the known absent
+ * column is tolerated, and only by omitting it.
+ */
+let rewardNameColumn: boolean | null = null;
+
+async function hasRewardNameColumn(): Promise<boolean> {
+  if (rewardNameColumn !== null) return rewardNameColumn;
+  try {
+    const rows = await db.$queryRaw<{ column_name: string }[]>`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name IN ('ScratchResult', 'DiceRollResult')
+        AND column_name = 'customerName'`;
+    rewardNameColumn = rows.length === 2;
+  } catch {
+    // The probe itself must never break the list — worst case is nameless
+    // instant-reward rows until the next cold start re-probes.
+    rewardNameColumn = false;
+  }
+  return rewardNameColumn;
+}
+
+/** Reward-table row as the merge reads it; `customerName` is null/absent pre-migration. */
+interface RewardSourceRow {
+  customerPhone: string;
+  customerName: string | null;
+}
+
 /** One merged customer row returned to the merchant dashboard. */
 interface MergedCustomer {
   /** `CustomerStamp.id`, or `scan:<phone>` for a customer with no card yet. */
@@ -95,6 +130,10 @@ export const GET = withMerchant(async (req: NextRequest, session, merchant) => {
     // merchant scope only — `scope` (with `deletedAt`) would fail to validate.
     const rewardScope = { merchantId: merchant.id } as const;
 
+    // Pre-migration guard: omit `customerName` from reward selects until both
+    // columns exist (see `hasRewardNameColumn` above).
+    const withRewardName = await hasRewardNameColumn();
+
     const [
       stamps,
       latestRequests,
@@ -147,34 +186,36 @@ export const GET = withMerchant(async (req: NextRequest, session, merchant) => {
         _count: { _all: true },
       }),
       // Instant-reward reveals, newest reveal per phone (name + first visit).
-      db.scratchResult.findMany({
+      // The cast is load-bearing: pre-migration the select omits customerName
+      // (absent column), so the row type is asserted and read with `?? null`.
+      (await db.scratchResult.findMany({
         where: rewardScope,
         orderBy: [{ scratchedAt: 'desc' }, { id: 'desc' }],
         distinct: ['customerPhone'],
         take: CUSTOMER_MERGE_LIMIT,
         select: {
           customerPhone: true,
-          customerName: true,
+          ...(withRewardName ? { customerName: true } : {}),
           scratchedAt: true,
         },
-      }),
+      })) as unknown as (RewardSourceRow & { scratchedAt: Date })[],
       db.scratchResult.groupBy({
         by: ['customerPhone'],
         where: rewardScope,
         _count: { _all: true },
       }),
       // Same for dice rolls (Phase 13 kept the two engines symmetric).
-      db.diceRollResult.findMany({
+      (await db.diceRollResult.findMany({
         where: rewardScope,
         orderBy: [{ rolledAt: 'desc' }, { id: 'desc' }],
         distinct: ['customerPhone'],
         take: CUSTOMER_MERGE_LIMIT,
         select: {
           customerPhone: true,
-          customerName: true,
+          ...(withRewardName ? { customerName: true } : {}),
           rolledAt: true,
         },
-      }),
+      })) as unknown as (RewardSourceRow & { rolledAt: Date })[],
       db.diceRollResult.groupBy({
         by: ['customerPhone'],
         where: rewardScope,

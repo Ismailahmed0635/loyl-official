@@ -21,7 +21,7 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed select-none min-h-[44px]';
+    'inline-flex items-center justify-center gap-1.5 text-center font-semibold transition-[transform,background-color,border-color,box-shadow,opacity] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed select-none [&_svg]:shrink-0';
 
   // Sovereign Green button recipes (DESIGN.md → Components → Buttons):
   // primary = Royal Green with a hairline inset; secondary/accent = Wine, the
@@ -43,14 +43,18 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2.5 text-base',
-    lg: 'px-6 py-3.5 text-lg',
+    // sm is visually compact (36px) for dense/inline actions; the ::before
+    // pad expands its hit area back to 44px (better-ui hit-area rule).
+    sm: 'relative min-h-[36px] px-3 py-1 text-[13px] leading-5 before:absolute before:-inset-2 before:content-[""] [&_svg]:size-3.5',
+    // md keeps the 44px tap-target rule but drops a padding step + a type
+    // step (was py-2.5 text-base) so default buttons stop dominating.
+    md: 'min-h-[44px] px-4 py-2 text-sm leading-5 [&_svg]:size-4',
+    lg: 'min-h-[48px] px-5 py-2.5 text-[15px] leading-6 [&_svg]:size-[18px]',
   };
 
   return (
     <motion.button
-      whileTap={{ scale: disabled || isLoading ? 1 : 0.98 }}
+      whileTap={{ scale: disabled || isLoading ? 1 : 0.96 }}
       // tailwind-merge: an explicit className (e.g. a per-flow accent colour)
       // reliably wins over the variant defaults instead of racing the stylesheet.
       className={cn(baseStyles, variants[variant], sizes[size], className)}

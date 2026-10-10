@@ -12,7 +12,7 @@ import { Stagger } from '@/components/animations/Stagger';
 import type { CustomerListResponse } from '@/lib/api/merchant';
 import { listCustomers } from '@/lib/api/merchant';
 import { useQuery } from '@/lib/api/cache';
-import { AlertCircle, ChevronLeft, ChevronRight, Gift, Search, Stamp, Users } from 'lucide-react';
+import { AlertCircle, ChevronLeft, ChevronRight, Gift, QrCode, Search, Stamp, Users } from 'lucide-react';
 
 const PAGE_SIZE = 20;
 
@@ -69,16 +69,16 @@ export default function CustomersPage() {
           eyebrow={
             data ? (
               <Badge tone="success">
-                {data.stats.totalCustomers} holder{data.stats.totalCustomers === 1 ? '' : 's'}
+                {data.stats.totalCustomers} customer{data.stats.totalCustomers === 1 ? '' : 's'}
               </Badge>
             ) : undefined
           }
           meta={
             data
-              ? `${data.stats.totalCustomers} card holder${data.stats.totalCustomers === 1 ? '' : 's'} at your shop${
+              ? `${data.stats.totalCustomers} customer${data.stats.totalCustomers === 1 ? ' has' : 's have'} checked in at your shop${
                   submittedQuery ? ` · showing matches for “${submittedQuery}”` : ''
                 }`
-              : 'Everyone who collected a stamp card at your shop.'
+              : 'Everyone who checked in at your shop, by name and scan count.'
           }
         />
       </FadeUp>
@@ -87,12 +87,11 @@ export default function CustomersPage() {
       <FadeUp>
         <form onSubmit={search} className="flex gap-2" role="search">
           <Input
-            label="Search by phone"
-            placeholder="e.g. 01712"
-            inputMode="numeric"
+            label="Search by name or phone"
+            placeholder="e.g. 01712 or Rahim"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            maxLength={20}
+            maxLength={40}
             className="flex-1"
           />
           <Button type="submit" variant="primary" size="md" isLoading={loading} className="self-end">
@@ -150,7 +149,14 @@ export default function CustomersPage() {
                       <Users size={18} />
                     </span>
                     <div className="min-w-0">
-                      <p className="font-label-lg text-label-lg text-on-surface truncate tabular-nums">
+                      {/* Phase 12: the name the customer gave at check-in. Cards
+                          granted before name capture (or a customer who never
+                          supplied one) fall back to the phone alone rather than
+                          pretending they have a name. */}
+                      <p className="font-label-lg text-label-lg text-on-surface truncate">
+                        {customer.customerName || 'Unnamed customer'}
+                      </p>
+                      <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5 tabular-nums truncate">
                         {customer.customerPhone}
                       </p>
                       <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5 tabular-nums">
@@ -159,19 +165,34 @@ export default function CustomersPage() {
                       </p>
                     </div>
                   </div>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    {/* Phase 12: a check-in waiting on the merchant is surfaced
+                        on the customer so it cannot be missed from either list. */}
+                    {customer.pendingCount > 0 && (
+                      <Badge tone="wine">
+                        {customer.pendingCount} waiting
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 border-t border-hairline pt-2.5">
+                <div className="grid grid-cols-3 gap-2 border-t border-hairline pt-2.5">
                   <span className="inline-flex items-center gap-1.5 font-label-lg text-label-lg text-on-surface">
+                    <QrCode className="w-4 h-4 text-primary" />
+                    <span className="tabular-nums">
+                      {customer.scanCount} scan{customer.scanCount === 1 ? '' : 's'}
+                    </span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 font-label-lg text-label-lg text-on-surface justify-center">
                     <Stamp className="w-4 h-4 text-brand-green" />
                     <span className="tabular-nums">
-                      {customer.stampsCollected} stamp{customer.stampsCollected === 1 ? '' : 's'} held
+                      {customer.stampsCollected} stamp{customer.stampsCollected === 1 ? '' : 's'}
                     </span>
                   </span>
                   <span className="inline-flex items-center gap-1.5 font-label-lg text-label-lg text-on-surface justify-end">
                     <Gift className="w-4 h-4 text-brand-red" />
                     <span className="tabular-nums">
-                      {customer.totalRedeemed} reward{customer.totalRedeemed === 1 ? '' : 's'} earned
+                      {customer.totalRedeemed} reward{customer.totalRedeemed === 1 ? '' : 's'}
                     </span>
                   </span>
                 </div>

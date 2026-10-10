@@ -183,6 +183,14 @@ export default function ScanOfferPage() {
           setCtx((prev) => (prev ? { ...prev, pendingRequest: data.request } : prev));
         }
         setActionError('');
+      } else if (code === 'NAME_REQUIRED') {
+        // Phase 12: the session predates name capture (a camera app or in-app
+        // webview dropped the cookie and a name-less one was resumed). `/scan`
+        // recognises a name-less customer session and shows the remembered
+        // identity in the form, so this is a redirect with a way forward —
+        // previously it fell into the generic branch below and the customer
+        // had no way to supply their name at all.
+        router.replace(`/scan?offer=${encodeURIComponent(offerId)}`);
       } else if (code === 'NEED_LOCATION') {
         setActionError('This shop verifies your location. Please allow location access.');
       } else if (code === 'LOCATION_OUT_OF_RANGE') {

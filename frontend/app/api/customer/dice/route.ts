@@ -127,6 +127,8 @@ export const POST = withCustomer(
           offerId: offer.id,
           merchantId: offer.merchantId,
           customerPhone,
+          // Same as ScratchResult: keep the sign-in name for the merchant list.
+          customerName: session.name ?? null,
           diceCount: roll.diceCount,
           diceValues: roll.diceValues,
           total: roll.total,

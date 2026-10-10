@@ -173,11 +173,18 @@ model ScratchItem {
 }
 
 /// One customer scratch reveal — snapshot of the drawn reward (24h per-offer cooldown).
+///
+/// `customerName` is the sign-in name captured at reveal time (the route runs
+/// with `requireName`, so it is always present on new rows). Without it the
+/// name typed at check-in was dropped on the floor: scratch is the only engine
+/// the free trial exposes, so the merchant saw an anonymous phone number and no
+/// row at all on the customers list. Nullable so historical rows stay valid.
 model ScratchResult {
   id           String      @id @default(cuid())
   offerId      String
   merchantId   String
   customerPhone String
+  customerName  String?
   rewardLabel  String
   mode         ScratchMode
   scratchedAt  DateTime    @default(now())
@@ -210,6 +217,8 @@ model DiceRollResult {
   total         Int
   /// The discount the customer earned: the roll total, as a whole percent.
   discountPercent Int
+  /// Sign-in name captured at roll time — same gap as `ScratchResult.customerName`.
+  customerName  String?
   rolledAt      DateTime @default(now())
 
   offer    Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)

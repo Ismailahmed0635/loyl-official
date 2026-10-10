@@ -9,7 +9,8 @@ import { FadeUp } from '@/components/animations/FadeUp';
 import { CustomerSignIn } from '@/components/customer/CustomerSignIn';
 import { slideUp } from '@/lib/motion/variants';
 import { getAuthMe } from '@/lib/api/client';
-import { getOfferContext, OfferContext } from '@/lib/api/customer';
+import { getOfferContext, OfferContext, createCustomerSession } from '@/lib/api/customer';
+import { loadCustomerIdentity } from '@/lib/customerIdentity';
 import { REWARD_LABELS } from '@/lib/constants';
 import { normalizeDiceCount } from '@/lib/dice';
 
@@ -26,7 +27,12 @@ function ScanContent() {
 
   const offerId = searchParams.get('offer');
   const next = searchParams.get('next');
-  const [status, setStatus] = useState<'loading' | 'in' | 'out'>('loading');
+  /**
+   * Phase 12: `resuming` is a distinct state from `loading` — the customer has
+   * a remembered identity and a session is being re-minted for them, so the
+   * form is never flashed on the way to the offer.
+   */
+  const [status, setStatus] = useState<'loading' | 'in' | 'out' | 'resuming'>('loading');
   const [ctx, setCtx] = useState<OfferContext | null>(null);
 
   const target = offerId
@@ -44,13 +50,44 @@ function ScanContent() {
       ]);
       if (!alive) return;
       if (context?.offer) setCtx(context);
-      if (me?.data?.authenticated) {
+
+      const session = me?.data?.session;
+      const authenticated = !!me?.data?.authenticated;
+      // A customer session minted before name capture passes the read gates
+      // (`/api/customer/offers/[offerId]` only needs the phone) but
+      // `POST /api/customer/scan` rejects it with NAME_REQUIRED — and the offer
+      // page had no branch for that code, so it fell through to a generic error
+      // with no way forward. Treat it as signed-out so the form reappears.
+      // Merchant and admin sessions are unaffected: they are never `customer`.
+      const missingName =
+        authenticated && session?.role === 'customer' && !(session?.name || '').trim();
+
+      if (authenticated && !missingName) {
         // Already signed in: continue to the offer (or the ready panel).
         setStatus('in');
         if (offerId) router.replace(target);
-      } else {
-        setStatus('out');
+        return;
       }
+
+      // Signed out, or holding a name-less customer session. A camera app or an
+      // in-app webview routinely drops the 30-day session cookie, so re-mint
+      // one from this device's remembered identity instead of asking again.
+      // Only when there is somewhere to go — a bare `/visit of /scan` just
+      // pre-fills the form rather than redirecting.
+      const remembered = loadCustomerIdentity();
+      if (!remembered || (!offerId && !next)) {
+        setStatus('out');
+        return;
+      }
+
+      setStatus('resuming');
+      try {
+        const res = await createCustomerSession(remembered);
+        if (alive && res?.success) router.replace(target);
+      } catch {
+        /* fall through to the form */
+      }
+      if (alive) setStatus('out');
     })();
     return () => {
       alive = false;
@@ -65,6 +102,17 @@ function ScanContent() {
         aria-busy="true"
       >
         Checking your session…
+      </div>
+    );
+  }
+
+  if (status === 'resuming') {
+    return (
+      <div
+        className="py-10 text-center font-body-sm text-body-sm text-on-surface-variant"
+        aria-busy="true"
+      >
+        Signing you in…
       </div>
     );
   }

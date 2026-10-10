@@ -190,10 +190,21 @@ export interface AnalyticsResponse {
 }
 
 export interface CustomerRow {
+  /** `CustomerStamp.id`, `scan:<phone>`, `scratch:<phone>` or `dice:<phone>` depending on which source made the row. */
   id: string;
   customerPhone: string;
+  /** Phase 12: the name captured at check-in; null when never supplied. */
+  customerName: string | null;
   stampsCollected: number;
   totalRedeemed: number;
+  /**
+   * Phase 12: every check-in this phone ever made (approved history plus any
+   * still waiting) — the per-scan tracking number, distinct from
+   * `stampsCollected` which only counts approved stamps.
+   */
+  scanCount: number;
+  /** Phase 12: check-ins still awaiting the merchant's approval. */
+  pendingCount: number;
   lastScannedAt: string | null;
   lastReviewAt: string | null;
   createdAt: string;

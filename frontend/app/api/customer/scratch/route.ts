@@ -148,6 +148,8 @@ export const POST = withCustomer(
           offerId: offer.id,
           merchantId: offer.merchantId,
           customerPhone,
+          // Phase 12/13: keep the sign-in name — the merchant list reads it back.
+          customerName: session.name ?? null,
           rewardLabel: drawFresh.reward.label,
           mode,
         },

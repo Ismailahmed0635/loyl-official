@@ -749,7 +749,9 @@ export const customerListQuerySchema = z.object({
   q: z
     .string()
     .trim()
-    .max(20, { message: 'Search must be 20 characters or fewer' })
+    // Phase 12: the query also matches customer names, which run longer than a
+    // phone fragment did.
+    .max(40, { message: 'Search must be 40 characters or fewer' })
     .optional(),
   page: z.coerce.number({ invalid_type_error: 'Page must be a number' }).int().min(1).max(100000).optional(),
   pageSize: z.coerce

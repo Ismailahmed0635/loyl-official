@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { slideUp } from '@/lib/motion/variants';
 import { createCustomerSession } from '@/lib/api/customer';
+import { loadCustomerIdentity, saveCustomerIdentity } from '@/lib/customerIdentity';
 import { Smartphone } from 'lucide-react';
 
 const PHONE_RE = /^(?:\+88)?01[3-9]\d{8}$/;
@@ -41,6 +42,18 @@ export const CustomerSignIn: React.FC<CustomerSignInProps> = ({
   const [loading, setLoading] = useState(false);
   const inFlightRef = useRef(false);
 
+  /**
+   * Phase 12: prefill from this device's remembered identity. Runs after mount
+   * only, so the server-rendered markup stays byte-identical and there is no
+   * hydration mismatch between an empty server field and a filled client one.
+   */
+  useEffect(() => {
+    const remembered = loadCustomerIdentity();
+    if (!remembered) return;
+    setName((current) => current || remembered.name);
+    setPhone((current) => current || remembered.phoneNumber);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (inFlightRef.current) return;
@@ -58,6 +71,9 @@ export const CustomerSignIn: React.FC<CustomerSignInProps> = ({
     try {
       const res = await createCustomerSession({ name: name.trim(), phoneNumber: phone });
       if (res?.success) {
+        // Only remember once the session actually exists, so a failed submit
+        // never leaves a stale identity to auto-resume with later.
+        saveCustomerIdentity({ name: name.trim(), phoneNumber: phone });
         onVerified();
       } else {
         setError(res?.error?.message || 'Could not sign you in. Try again.');

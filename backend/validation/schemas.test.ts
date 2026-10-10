@@ -566,7 +566,15 @@ describe('Phase 4 Customer List Query Schema', () => {
     expect(customerListQuerySchema.safeParse({ page: 'abc' }).success).toBe(false);
     expect(customerListQuerySchema.safeParse({ pageSize: '0' }).success).toBe(false);
     expect(customerListQuerySchema.safeParse({ pageSize: '101' }).success).toBe(false);
-    expect(customerListQuerySchema.safeParse({ q: 'x'.repeat(21) }).success).toBe(false);
+    // Phase 12: the cap follows names, not just phone fragments — 41 is over.
+    expect(customerListQuerySchema.safeParse({ q: 'x'.repeat(41) }).success).toBe(false);
+    expect(customerListQuerySchema.safeParse({ q: 'x'.repeat(40) }).success).toBe(true);
+  });
+
+  it('accepts a name fragment, not only digits', () => {
+    const parsed = customerListQuerySchema.safeParse({ q: 'Rahim Chowdhury' });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.q).toBe('Rahim Chowdhury');
   });
 });
 

@@ -124,7 +124,7 @@ export default function RequestsPage() {
       <FadeUp>
         <PageHeader
           title="Stamp Requests"
-          meta="Every scan waits here for your confirmation. Accept it to give the stamp — or just hold it. You can never reject a customer."
+          meta="Every stamp-card check-in waits here for your confirmation. Accept it to give the stamp — or just hold it. You can never reject a customer. Scratch and dice rewards pay out instantly, so those scans never open a request."
           actions={
             pendingCount > 0 ? (
               <Badge tone="wine" uppercase>
@@ -230,7 +230,7 @@ export default function RequestsPage() {
           </p>
           <p className="font-body-sm text-body-sm text-on-surface-variant">
             {tab === 'PENDING'
-              ? 'When a customer scans your QR poster it appears here instantly, and you decide whether to give the stamp.'
+              ? 'When a customer scans a stamp-card QR it appears here instantly, and you decide whether to give the stamp. Scratch and dice rewards are handed over on the spot, so they never wait here.'
               : 'Accepted check-ins show up here with the time you confirmed them.'}
           </p>
         </Card>

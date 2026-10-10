@@ -911,6 +911,46 @@ async function main() {
     `status ${scan1.status}, data ${JSON.stringify(scan1.json?.data?.request ?? scan1.json)}`
   );
 
+  // Phase 12: the request has to actually ARRIVE at the merchant, not just
+  // exist in the customer's response. This is the "merchant sees a pending
+  // check-in" contract the /requests page polls for.
+  const arrived = await call('/api/merchant/scan-requests?status=PENDING', { method: 'GET', cookie: m1 });
+  const arrivedRow = (arrived.json?.data?.requests || []).find((r) => r.id === pendingId);
+  check(
+    'Pending check-in ARRIVES in the merchant queue with the customer name',
+    arrived.status === 200 &&
+      arrived.json?.data?.pendingCount >= 1 &&
+      !!arrivedRow &&
+      arrivedRow.customerPhone === C_FIXED1 &&
+      arrivedRow.customerName === 'Smoke Customer',
+    `status ${arrived.status}, pendingCount ${arrived.json?.data?.pendingCount}, row ${JSON.stringify(arrivedRow ?? null)}`
+  );
+
+  // Phase 12: a customer who has ONLY scanned (no approved stamp yet) must be
+  // visible on /customers — previously the list read CustomerStamp alone, so a
+  // scan-only customer was invisible and the name was never shown at all.
+  const custList = await call(`/api/merchant/customers?q=${C_FIXED1}`, { method: 'GET', cookie: m1 });
+  const seen = (custList.json?.data?.customers || [])[0];
+  check(
+    'Scan-only customer appears on /customers with name, scan count and pending badge',
+    custList.status === 200 &&
+      !!seen &&
+      seen.customerPhone === C_FIXED1 &&
+      seen.customerName === 'Smoke Customer' &&
+      seen.scanCount >= 1 &&
+      seen.pendingCount >= 1,
+    `status ${custList.status}, row ${JSON.stringify(seen ?? null)}`
+  );
+
+  // Phase 12: the search matches names too, not only phone fragments.
+  const byName = await call('/api/merchant/customers?q=Smoke%20Customer', { method: 'GET', cookie: m1 });
+  check(
+    'Customer search matches the NAME as well as the phone',
+    byName.status === 200 &&
+      (byName.json?.data?.customers || []).some((r) => r.customerPhone === C_FIXED1),
+    `status ${byName.status}, rows ${(byName.json?.data?.customers || []).length}`
+  );
+
   const webApprove = await call(`/api/merchant/scan-requests/${pendingId}`, { cookie: m1 });
   check(
     'Web session approval -> 403 APP_APPROVAL_REQUIRED',
@@ -942,6 +982,27 @@ async function main() {
       approve.json?.data?.request?.approvedByDeviceId === device.deviceId &&
       approve.json?.data?.card?.stampsCollected === 1,
     `status ${approve.status}, data ${JSON.stringify(approve.json?.data ?? approve.json)}`
+  );
+
+  // Phase 12: after approval the same customer must read as a *card holder*
+  // (stamps filled, pending cleared) while the scan history is preserved —
+  // i.e. the union merges rather than double-counts or drops either side.
+  // Phase 13: `scanCount` now counts every visit, so it is 1 stamp scan + 1
+  // scratch reveal for this phone. The merge is still asserted by the row
+  // count below — a duplicate row would make it 2 for one unique phone.
+  const afterApprove = await call(`/api/merchant/customers?q=${C_FIXED1}`, { method: 'GET', cookie: m1 });
+  const mergedRows = afterApprove.json?.data?.customers || [];
+  const merged = mergedRows[0];
+  check(
+    'After approval the row is a card holder: 1 stamp, 2 check-ins, 0 pending, name kept',
+    afterApprove.status === 200 &&
+      mergedRows.length === 1 &&
+      !!merged &&
+      merged.customerName === 'Smoke Customer' &&
+      merged.stampsCollected === 1 &&
+      merged.scanCount === 2 &&
+      merged.pendingCount === 0,
+    `status ${afterApprove.status}, rows ${mergedRows.length}, row ${JSON.stringify(merged ?? null)}`
   );
 
   const cards = await call('/api/customer/cards', { method: 'GET', cookie: cFix1 });

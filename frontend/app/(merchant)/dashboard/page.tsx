@@ -211,24 +211,26 @@ export default function DashboardPage() {
         })}
       </Stagger>
 
-      {/* Quick actions */}
+      {/* Quick actions — compact pill toolbar + mint menu card */}
       <FadeUp>
-        <div className="grid grid-cols-2 gap-space-sm">
-          <button
-            onClick={() => router.push('/offers/new')}
-            className="min-h-[48px] flex items-center justify-center gap-2 px-4 rounded-lg bg-brand-red text-white text-sm font-semibold hover:brightness-110 active:brightness-90 transition focus:outline-none focus:ring-2 focus:ring-brand-red"
-          >
-            <Plus className="w-4 h-4" /> Create Offer
-          </button>
-          <button
-            onClick={() => router.push('/branches?new=1')}
-            className="min-h-[48px] flex items-center justify-center gap-2 px-4 rounded-lg bg-surface-container-lowest border border-brand-border text-on-surface text-sm font-semibold hover:bg-primary-container/[0.04] transition-colors focus:outline-none focus:ring-2 focus:ring-brand-green"
-          >
-            <MapPin className="w-4 h-4" /> Add Branch
-          </button>
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => router.push('/offers/new')}
+              className="min-h-[40px] flex items-center justify-center gap-1.5 px-3 rounded-pill bg-brand-red text-white text-[13px] font-semibold shadow-sm hover:brightness-110 active:brightness-90 active:scale-[0.97] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-red"
+            >
+              <Plus className="w-3.5 h-3.5" /> Create Offer
+            </button>
+            <button
+              onClick={() => router.push('/branches?new=1')}
+              className="min-h-[40px] flex items-center justify-center gap-1.5 px-3 rounded-pill bg-surface-container-lowest border border-hairline text-on-surface text-[13px] font-semibold shadow-sm hover:bg-surface-container-low active:scale-[0.97] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green"
+            >
+              <MapPin className="w-3.5 h-3.5" /> Add Branch
+            </button>
+          </div>
           <button
             onClick={() => router.push('/menu')}
-            className="col-span-2 min-h-[44px] flex items-center justify-center gap-2 px-4 rounded-lg bg-surface-container-low text-on-surface-variant text-sm font-semibold hover:bg-surface-container transition-colors focus:outline-none focus:ring-2 focus:ring-brand-green"
+            className="min-h-[52px] flex items-center justify-center gap-2 px-4 rounded-card bg-primary-fixed text-on-primary-fixed text-sm font-semibold shadow-sm hover:brightness-[0.98] active:scale-[0.99] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green"
           >
             <BookOpen className="w-4 h-4" /> Digital Menu
           </button>

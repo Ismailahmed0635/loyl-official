@@ -46,14 +46,29 @@ const PUBLIC_PREFIXES = ['/scan', '/menu'];
 /** Customer pages (non-entry) — guests re-enter through the scan flow. */
 const CUSTOMER_PREFIXES = ['/stamp-card', '/reward', '/profile'];
 
-async function hasValidSession(req: NextRequest): Promise<boolean> {
+/** Merchant console pages — merchant sessions only. */
+const MERCHANT_PREFIXES = [
+  '/dashboard',
+  '/offers',
+  '/branches',
+  '/analytics',
+  '/customers',
+  '/requests',
+  '/settings',
+  '/billing',
+];
+
+async function getSessionRole(req: NextRequest): Promise<{ valid: boolean; role?: string }> {
   const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
-  if (!token) return false;
+  if (!token) return { valid: false };
   try {
-    await jwtVerify(token, getJwtSecret()); // verifies signature + expiry
-    return true;
+    const { payload } = await jwtVerify(token, getJwtSecret()); // verifies signature + expiry
+    const role = typeof (payload as { role?: unknown }).role === 'string'
+      ? (payload as { role: string }).role
+      : undefined;
+    return { valid: true, role };
   } catch {
-    return false;
+    return { valid: false };
   }
 }
 
@@ -79,7 +94,53 @@ export async function middleware(req: NextRequest) {
   const pathname = raw.length > 1 && raw.endsWith('/') ? raw.slice(0, -1) : raw;
 
   if (isPublic(pathname)) return NextResponse.next();
-  if (await hasValidSession(req)) return NextResponse.next();
+
+  const session = await getSessionRole(req);
+  const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
+
+  // Admin panel: valid session is not enough — role must be admin.
+  // Guests -> /admin/login. Signed-in non-admins -> their own home
+  // (customer -> /scan, everyone else -> /dashboard), never the login form.
+  if (isAdminPath) {
+    if (!session.valid) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/admin/login';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+    if (session.role !== 'admin') {
+      const url = req.nextUrl.clone();
+      url.pathname = session.role === 'customer' ? '/scan' : '/dashboard';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
+
+  // Merchant console: bounce admin sessions server-side (was client-only).
+  if (MERCHANT_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    if (!session.valid) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/welcome';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+    if (session.role === 'admin') {
+      const url = req.nextUrl.clone();
+      url.pathname = '/admin';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+    if (session.role === 'customer') {
+      const url = req.nextUrl.clone();
+      url.pathname = '/scan';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
+
+  if (session.valid) return NextResponse.next();
 
   const dest = guestDestination(pathname);
   const url = req.nextUrl.clone();

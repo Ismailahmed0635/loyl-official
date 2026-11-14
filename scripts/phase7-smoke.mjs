@@ -12,8 +12,8 @@
  *       409 -> paid validation battery (422s incl. bad/oversize files) ->
  *       admin login -> screenshot endpoint (401/403/404) -> approve FREE
  *       (ACTIVE, no expiry) -> paid submit WITH screenshot (file on disk)
- *       -> admin views screenshot (200 image/png) -> approve as YEARLY
- *       (tier granted +365d, screenshotPath cleared + FILE DELETED) ->
+ *       -> admin views screenshot (200 image/png) -> approve as GROWTH
+ *       (tier granted +30d, screenshotPath cleared + FILE DELETED) ->
  *       reject flow (file deleted too) -> duplicate trx 409 (no orphan file)
  *       -> invalid tier 422 / re-approve 409 -> pages render.
  *
@@ -408,7 +408,7 @@ async function main() {
 
   // --- E. Paid validation battery (M_PAID, no rows created) ------------------
   const paidBase = {
-    requestedTier: 'MONTHLY',
+    requestedTier: 'STARTER',
     paymentMethod: 'BKASH',
     senderNumber: M_PAID,
     trxId: `P7N${Date.now()}`,
@@ -604,7 +604,7 @@ async function main() {
   const listed = (listPaid.json?.data?.payments || []).find((p) => p.trxId === TRX1);
   check(
     'Admin list shows requestedTier + hasScreenshot',
-    listed?.requestedTier === 'MONTHLY' && listed?.hasScreenshot === true,
+    listed?.requestedTier === 'STARTER' && listed?.hasScreenshot === true,
     JSON.stringify({ tier: listed?.requestedTier, shot: listed?.hasScreenshot })
   );
 
@@ -619,28 +619,28 @@ async function main() {
     `status ${shotView.status}, type ${shotBytes}`
   );
 
-  // --- J. Approve as YEARLY: tier granted + storage cleanup ------------------
-  const approveYearly = await call('/api/admin/approve-payment', {
+  // --- J. Approve as GROWTH: tier granted + storage cleanup ------------------
+  const approveGrowth = await call('/api/admin/approve-payment', {
     cookie: admin,
-    body: { paymentRequestId: paidRow.id, tier: 'YEARLY' },
+    body: { paymentRequestId: paidRow.id, tier: 'GROWTH' },
   });
-  const granted = approveYearly.json?.data?.merchant;
+  const granted = approveGrowth.json?.data?.merchant;
   const expiresIn = granted?.subscriptionExpiresAt
     ? new Date(granted.subscriptionExpiresAt).getTime() - Date.now()
     : 0;
   check(
-    'Approve with tier YEARLY -> ACTIVE + ~365d expiry',
-    approveYearly.status === 200 &&
-      granted?.subscriptionTier === 'YEARLY' &&
+    'Approve with tier GROWTH -> ACTIVE + ~30d expiry',
+    approveGrowth.status === 200 &&
+      granted?.subscriptionTier === 'GROWTH' &&
       granted?.subscriptionStatus === 'ACTIVE' &&
-      expiresIn > 364 * DAY_MS &&
-      expiresIn <= 366 * DAY_MS,
-    `status ${approveYearly.status}, ${JSON.stringify({ tier: granted?.subscriptionTier, expiresInDays: Math.round(expiresIn / DAY_MS) })}`
+      expiresIn > 29 * DAY_MS &&
+      expiresIn <= 31 * DAY_MS,
+    `status ${approveGrowth.status}, ${JSON.stringify({ tier: granted?.subscriptionTier, expiresInDays: Math.round(expiresIn / DAY_MS) })}`
   );
   check(
     'Approval reports the screenshot as deleted',
-    approveYearly.json?.data?.deletedScreenshot === true && approveYearly.json?.data?.payment?.screenshotPath === null,
-    JSON.stringify({ deleted: approveYearly.json?.data?.deletedScreenshot })
+    approveGrowth.json?.data?.deletedScreenshot === true && approveGrowth.json?.data?.payment?.screenshotPath === null,
+    JSON.stringify({ deleted: approveGrowth.json?.data?.deletedScreenshot })
   );
 
   const goneAfterApprove = storedPath ? (await shots.get(storedPath)) === null : false;
@@ -658,8 +658,8 @@ async function main() {
 
   const paidBilling = await call('/api/billing', { method: 'GET', cookie: mPaid });
   check(
-    'Paid merchant sees YEARLY/ACTIVE after approval',
-    paidBilling.json?.data?.subscription?.tier === 'YEARLY' &&
+    'Paid merchant sees GROWTH/ACTIVE after approval',
+    paidBilling.json?.data?.subscription?.tier === 'GROWTH' &&
       paidBilling.json?.data?.subscription?.status === 'ACTIVE',
     JSON.stringify(paidBilling.json?.data?.subscription)
   );
@@ -669,7 +669,7 @@ async function main() {
   const secondSubmit = await call('/api/billing/checkout', {
     cookie: mPaid,
     form: checkoutForm(
-      { ...paidBase, requestedTier: 'YEARLY', amount: '5000', trxId: TRX2 },
+      { ...paidBase, requestedTier: 'GROWTH', amount: '1000', trxId: TRX2 },
       { bytes: PNG_BYTES(64), type: 'image/png', name: 'trx2.png' }
     ),
   });
@@ -699,7 +699,7 @@ async function main() {
       reject.json?.data?.payment?.status === 'REJECTED' &&
       reject.json?.data?.deletedScreenshot === true &&
       secondGone &&
-      reject.json?.data?.payment?.merchant?.subscriptionTier === 'YEARLY',
+      reject.json?.data?.payment?.merchant?.subscriptionTier === 'GROWTH',
     `status ${reject.status}, fileGone ${secondGone}`
   );
 
@@ -723,7 +723,7 @@ async function main() {
 
   const reApprove = await call('/api/admin/approve-payment', {
     cookie: admin,
-    body: { paymentRequestId: paidRow.id, tier: 'PREMIUM' },
+    body: { paymentRequestId: paidRow.id, tier: 'ENTERPRISE' },
   });
   check(
     'Re-approve an approved request -> 409 PAYMENT_NOT_PENDING',
@@ -736,6 +736,35 @@ async function main() {
     body: { paymentRequestId: 'cmu00000000000000000000', tier: 'LIFETIME' },
   });
   check('Approve with unknown tier -> 422', badApproveTier.status === 422, `status ${badApproveTier.status}`);
+
+  // --- N. No-payment request: paid tier without transfer details ------------
+  // The owner can grant anyone a paid plan free — the merchant ticks
+  // "request free approval" and the admin picks the tier on approve.
+  const noPaySubmit = await call('/api/billing/checkout', {
+    cookie: mFree,
+    form: checkoutForm({ requestedTier: 'STARTER', noPayment: 'true' }),
+  });
+  const noPayRow = noPaySubmit.json?.data?.request;
+  check(
+    'Paid-tier request without payment details submitted (201, amount 0, no trx)',
+    noPaySubmit.status === 201 &&
+      noPayRow?.amount === 0 &&
+      noPayRow?.trxId === null &&
+      noPayRow?.hasScreenshot === false,
+    `status ${noPaySubmit.status}, ${JSON.stringify({ amount: noPayRow?.amount, trxId: noPayRow?.trxId })}`
+  );
+
+  const noPayApprove = await call('/api/admin/approve-payment', {
+    cookie: admin,
+    body: { paymentRequestId: noPayRow.id, tier: 'STARTER' },
+  });
+  check(
+    'Admin approves no-payment request -> STARTER/ACTIVE + ~30d',
+    noPayApprove.status === 200 &&
+      noPayApprove.json?.data?.merchant?.subscriptionTier === 'STARTER' &&
+      noPayApprove.json?.data?.merchant?.subscriptionStatus === 'ACTIVE',
+    `status ${noPayApprove.status}, ${JSON.stringify(noPayApprove.json?.data?.merchant)}`
+  );
 
   // --- M. Pages render (session cookies — middleware gates guests) ----------
   await pageRenders('/billing', mFree);

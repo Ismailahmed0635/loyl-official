@@ -7,7 +7,7 @@ import { PLANS, type BillingTier } from '@/lib/api/payments';
 
 /**
  * /billing/checkout — standalone checkout entry (e.g. deep links with
- * ?tier=YEARLY). The modal opens immediately; closing returns to /billing.
+ * ?tier=GROWTH). The modal opens immediately; closing returns to /billing.
  */
 export default function CheckoutPage() {
   const router = useRouter();
@@ -15,7 +15,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('tier');
-    setTier(PLANS.find((plan) => plan.tier === requested)?.tier ?? 'MONTHLY');
+    setTier(PLANS.find((plan) => plan.tier === requested)?.tier ?? 'STARTER');
   }, []);
 
   return (
@@ -33,7 +33,7 @@ export default function CheckoutPage() {
 
       <CheckoutModal
         open={tier !== null}
-        initialTier={tier ?? 'MONTHLY'}
+        initialTier={tier ?? 'STARTER'}
         onClose={() => router.push('/billing')}
       />
     </div>

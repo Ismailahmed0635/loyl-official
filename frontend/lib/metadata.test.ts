@@ -96,7 +96,7 @@ describe('buildRobots', () => {
     expect(robots.rules).toEqual([
       {
         userAgent: '*',
-        allow: '/menu/',
+        allow: ['/menu/', '/menus'],
         disallow: '/',
       },
     ]);

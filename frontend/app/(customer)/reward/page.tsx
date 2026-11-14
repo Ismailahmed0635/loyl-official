@@ -30,29 +30,43 @@ export default function RewardPage() {
     }, [])
   );
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const res = await listCustomerCards();
-        if (!alive) return;
-        if (res?.success) {
-          const data = res.data as CardsResponse;
-          setCards(data.cards);
-          setTotalRedeemed(data.totals.totalRedeemed);
-        } else {
-          setError(res?.error?.message || 'Failed to load your rewards.');
-        }
-      } catch {
-        if (alive) setError('Network error — check your connection and try again.');
-      } finally {
-        if (alive) setLoading(false);
+  const load = useCallback(async (silent = false) => {
+    // Silent refreshes (Part 2: polling / tab-focus) must not flash skeletons or
+    // wipe a loaded page with a transient network error.
+    if (!silent) {
+      setError('');
+    }
+    try {
+      const res = await listCustomerCards();
+      if (res?.success) {
+        const data = res.data as CardsResponse;
+        setCards(data.cards);
+        setTotalRedeemed(data.totals.totalRedeemed);
+      } else if (!silent) {
+        setError(res?.error?.message || 'Failed to load your rewards.');
       }
-    })();
-    return () => {
-      alive = false;
-    };
+    } catch {
+      if (!silent) setError('Network error — check your connection and try again.');
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    load();
+    // Part 2: rewards are granted from the merchant app, minutes after the
+    // customer left the scan page. Refresh quietly every 10s while the tab is
+    // visible, and immediately when the customer returns to this tab.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load(true);
+    };
+    const timer = setInterval(onVisible, 10_000);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [load]);
 
   if (loading) {
     return (

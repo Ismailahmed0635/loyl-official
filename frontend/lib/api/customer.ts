@@ -9,6 +9,7 @@ import type {
 import type { CardState } from '@/backend/scan';
 import type { ScratchState } from '@/backend/scratch';
 import type { DiceRollState } from '@/backend/dice';
+import { abortError } from '@/lib/fetchErrors';
 
 // --- Types -----------------------------------------------------------------
 
@@ -159,8 +160,20 @@ export interface CustomerCardItem {
   state: CardState;
 }
 
+export interface PendingRequestItem {
+  requestId: string;
+  merchantId: string;
+  businessName: string;
+  category: string;
+  logoUrl: string | null;
+  offerTitle: string;
+  requestedAt: string;
+}
+
 export interface CardsResponse {
   cards: CustomerCardItem[];
+  /** Check-ins waiting for the shop to approve — shown as amber cards. */
+  pendingRequests: PendingRequestItem[];
   totals: { cards: number; stampsCollected: number; totalRedeemed: number };
 }
 
@@ -170,7 +183,12 @@ export interface CardsResponse {
 const API_TIMEOUT_MS = 15_000;
 
 async function request<T = any>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, { ...init, signal: AbortSignal.timeout(API_TIMEOUT_MS) });
+  const res = await fetch(path, { ...init, signal: AbortSignal.timeout(API_TIMEOUT_MS) }).catch(
+    (e) => {
+      // Never let "signal timed out" reach a page's error banner verbatim.
+      throw abortError(e) ?? e;
+    }
+  );
   return res.json();
 }
 

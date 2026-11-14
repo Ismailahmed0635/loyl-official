@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withMerchant } from '@/backend/api/handler';
-import { checkRateLimit, recordHit, MUTATION_MERCHANT } from '@/backend/rateLimit';
+import { rateLimitGate, MUTATION_MERCHANT } from '@/backend/rateLimit';
 import { LogoUploadError, deleteLogo, readLogo, saveLogo, merchantLogoPath } from '@/backend/logo';
 import { db } from '@/backend/db';
 
@@ -30,13 +30,12 @@ export const GET = withMerchant(async (_req: NextRequest, _session, merchant) =>
 
 // POST /api/merchant/logo — validates and stores a logo image (multipart `logo`).
 export const POST = withMerchant(async (req: NextRequest, _session, merchant) => {
-  const gate = checkRateLimit(`merchant-logo:${merchant.id}`, MUTATION_MERCHANT);
+  const gate = await rateLimitGate(`merchant-logo:${merchant.id}`, MUTATION_MERCHANT);
   if (!gate.allowed) {
     return apiError('Too many uploads. Please wait a few minutes and try again.', 'RATE_LIMITED', 429, {
       retryAfterMs: gate.retryAfterMs,
     });
   }
-  recordHit(`merchant-logo:${merchant.id}`, MUTATION_MERCHANT);
 
   let form: FormData;
   try {

@@ -13,13 +13,14 @@ import {
   loginWithEmail,
   normalizeOptionalPhone,
   registerWithEmail,
+  signInWithGoogle,
   getFirebaseIdToken,
   validateEmail,
   validatePassword,
 } from '@/lib/firebase/email-auth';
 import { createEmailSession } from '@/lib/api/client';
 import { stashSetupPhone } from '@/lib/setupPhone';
-import { QrCode, Store, Sparkles } from 'lucide-react';
+import { Store, Sparkles, Mail } from 'lucide-react';
 
 // The crowd band pulls in gsap (~21 kB gz, the single heaviest parse/exec task
 // on this page under CPU throttle). Loaded on demand after hydration — see the
@@ -42,6 +43,7 @@ export default function WelcomePage() {
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string; phone?: string }>({});
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   // The crowd is client-only: the server renders without it, so hydration never
   // sees a server/client difference (useReducedMotion answers false during SSR).
   const [crowdMounted, setCrowdMounted] = useState(false);
@@ -110,6 +112,23 @@ export default function WelcomePage() {
     }
   };
 
+  const handleGoogle = async () => {
+    setFormError('');
+    setGoogleLoading(true);
+    try {
+      const { uid, email, isNewUser } = await signInWithGoogle();
+      const idToken = await getFirebaseIdToken();
+      if (!idToken) throw new Error('Signed in, but no session token was issued.');
+      const session = await createEmailSession({ idToken });
+      if (!session?.success) throw new Error(session?.error?.message || 'Could not start your session.');
+      router.push(session?.data?.isExistingMerchant ? '/dashboard' : '/business-setup');
+    } catch (err) {
+      setFormError(err instanceof Error && err.message ? err.message : 'Google sign-in failed. Try again.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <main className="relative min-h-screen flex items-center justify-center overflow-hidden p-4 pb-[210px] md:pb-[250px] bg-surface-container-lowest">
       {/*
@@ -153,11 +172,8 @@ export default function WelcomePage() {
 
           {/* Brand centerpiece */}
           <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-brand-green text-white shadow-inset-light mb-4">
-              <QrCode className="w-8 h-8" />
-            </div>
-            <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-tight">
-              Loyl<span className="text-brand-green">.io</span>
+            <h1 className="font-headline-lg-mobile text-headline-lg-mobile tracking-tight">
+              <img src="/logo.png" alt="Loyl" className="h-14 w-auto mx-auto" />
             </h1>
             <p className="font-body-md text-body-md text-on-surface-variant mt-1 max-w-xs mx-auto">
               Digital loyalty &amp; stamp cards for Bangladesh merchants
@@ -215,6 +231,23 @@ export default function WelcomePage() {
                   >
                     Log in
                   </button>
+                </div>
+
+                <div className="relative mb-4">
+                  <div className="flex items-center gap-4 text-label-sm text-on-surface-variant">
+                    <span className="flex-1 border-t border-hairline" />
+                    <span className="px-2">Or continue with</span>
+                    <span className="flex-1 border-t border-hairline" />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleGoogle}
+                    isLoading={googleLoading}
+                    className="w-full rounded-lg flex items-center justify-center gap-2"
+                  >
+                    <Mail className="w-4 h-4" /> Continue with Google
+                  </Button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
@@ -282,6 +315,7 @@ export default function WelcomePage() {
           </Card>
         </motion.div>
       </div>
+
     </main>
   );
 }

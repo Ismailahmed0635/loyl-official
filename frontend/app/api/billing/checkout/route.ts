@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { apiError, apiSuccess } from '@/backend/api/response';
 import { withMerchant } from '@/backend/api/handler';
 import { checkoutSchema } from '@/backend/validation/schemas';
-import { checkRateLimit, recordHit, CHECKOUT_MERCHANT } from '@/backend/rateLimit';
+import { rateLimitGate, CHECKOUT_MERCHANT } from '@/backend/rateLimit';
 import { deleteScreenshot, saveScreenshot, ScreenshotError } from '@/backend/billing';
 import { db } from '@/backend/db';
 
@@ -14,13 +14,12 @@ function fieldOf(error: { issues: { path: (string | number)[] }[] }): string | u
 // multipart/form-data: requestedTier, payment details (paid tiers only) and
 // an OPTIONAL screenshot file. One PENDING request per merchant at a time.
 export const POST = withMerchant(async (req, _session, merchant) => {
-  const gate = checkRateLimit(`checkout:${merchant.id}`, CHECKOUT_MERCHANT);
+  const gate = await rateLimitGate(`checkout:${merchant.id}`, CHECKOUT_MERCHANT);
   if (!gate.allowed) {
     return apiError('Too many checkout attempts. Please wait a few minutes and try again.', 'RATE_LIMITED', 429, {
       retryAfterMs: gate.retryAfterMs,
     });
   }
-  recordHit(`checkout:${merchant.id}`, CHECKOUT_MERCHANT);
 
   const existing = await db.paymentRequest.findFirst({
     where: { merchantId: merchant.id, status: 'PENDING', deletedAt: null },
@@ -39,15 +38,19 @@ export const POST = withMerchant(async (req, _session, merchant) => {
     return apiError('Expected a multipart/form-data submission.', 'INVALID_FORM', 400);
   }
 
-  // FREE requests carry no payment details — drop any stray fields so the
-  // paid-tier requirements never apply to them.
+  // FREE and no-payment requests carry no payment details — drop any stray
+  // fields so the paid-tier requirements never apply to them.
   const tierValue = form.get('requestedTier');
+  const noPaymentValue = form.get('noPayment');
   const candidate: Record<string, unknown> = { requestedTier: tierValue ?? undefined };
-  if (tierValue !== 'FREE') {
+  const skipPayment = tierValue === 'FREE' || noPaymentValue === 'true';
+  if (!skipPayment) {
     candidate.paymentMethod = form.get('paymentMethod') ?? undefined;
     candidate.senderNumber = form.get('senderNumber') ?? undefined;
     candidate.trxId = form.get('trxId') ?? undefined;
     candidate.amount = form.get('amount') ?? undefined;
+  } else if (noPaymentValue !== null) {
+    candidate.noPayment = noPaymentValue;
   }
 
   const parsed = checkoutSchema.safeParse(candidate);
@@ -58,7 +61,7 @@ export const POST = withMerchant(async (req, _session, merchant) => {
     });
   }
   const data = parsed.data;
-  const free = data.requestedTier === 'FREE';
+  const free = data.requestedTier === 'FREE' || data.noPayment === 'true';
 
   // Optional screenshot: validated + persisted BEFORE the row exists, so a
   // rejected upload never leaves a half-created request (or orphan file).

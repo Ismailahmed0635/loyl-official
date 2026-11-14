@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",
+    "@upstash/redis": "^1.39.0",
     "autoprefixer": "^10.6.1",
     "bcryptjs": "^2.4.3",
     "canvas-confetti": "^1.9.4",

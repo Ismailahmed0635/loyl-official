@@ -14,7 +14,7 @@ describe('RT-02 serializeActionDetail', () => {
   it('keeps primitive facts as valid JSON', () => {
     const json = serializeActionDetail({
       merchantId: 'm_1',
-      grantedTier: 'YEARLY',
+      grantedTier: 'GROWTH',
       amount: 1200,
       resumed: false,
       rejectedAt: null,
@@ -22,7 +22,7 @@ describe('RT-02 serializeActionDetail', () => {
     expect(json).not.toBeNull();
     expect(JSON.parse(json!)).toEqual({
       merchantId: 'm_1',
-      grantedTier: 'YEARLY',
+      grantedTier: 'GROWTH',
       amount: 1200,
       resumed: false,
       rejectedAt: null,

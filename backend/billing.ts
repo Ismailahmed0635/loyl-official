@@ -36,12 +36,13 @@ export const SCREENSHOT_MIME_EXT: Record<string, string> = {
   'image/gif': '.gif',
 };
 
-/** Validity period granted per tier; FREE is a 3-day trial (never "no expiry"). */
+/** Validity period granted per tier; FREE is a 3-day trial (never "no expiry").
+ * All paid tiers are monthly (30d) per the landing pricing. */
 export const TIER_DURATION_DAYS: Record<SubscriptionTier, number | null> = {
   FREE: 3,
-  MONTHLY: 30,
-  YEARLY: 365,
-  PREMIUM: 365,
+  STARTER: 30,
+  GROWTH: 30,
+  ENTERPRISE: 30,
 };
 
 /**

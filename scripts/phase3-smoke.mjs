@@ -244,6 +244,10 @@ async function main() {
   check('Scan opens a PENDING check-in — no stamp before approval', pendingA?.status === 'PENDING' && scan1.json?.data?.card?.stampsCollected === 0 && scan1.json?.data?.card?.exists === false && scan1.json?.data?.stamped === 0, JSON.stringify(scan1.json?.data?.card || {}));
   check('Card not complete before approval (0 of 2)', scan1.json?.data?.complete === false);
   check('Scan response carries reward details', scan1.json?.data?.reward?.requiredStamps === 2 && scan1.json?.data?.reward?.merchantName === BIZ_NAME, JSON.stringify(scan1.json?.data?.reward || {}));
+  // Part 1 (2026-10-26): the pending check-in must surface in My Cards so the
+  // customer can see it while waiting for shop approval.
+  const pendingCards = await call('/api/customer/cards', { method: 'GET', cookie: c1 });
+  check('Cards list shows the pending check-in before approval', pendingCards.status === 200 && pendingCards.json?.data?.pendingRequests?.length === 1 && pendingCards.json?.data?.pendingRequests?.[0]?.requestId === pendingA?.id && pendingCards.json?.data?.pendingRequests?.[0]?.offerTitle.length > 0, `pending=${JSON.stringify(pendingCards.json?.data?.pendingRequests || [])}`);
 
   // --- Phase 10: the web dashboard can never approve ------------------------
   const webApprove = await call(`/api/merchant/scan-requests/${pendingA?.id}`, { cookie: m1 });

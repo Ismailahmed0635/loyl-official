@@ -52,12 +52,23 @@ describe('email-auth pure helpers', () => {
     expect(authErrorMessage({ code: 'auth/weak-password' })).toContain('too weak');
     expect(authErrorMessage({ code: 'auth/invalid-credential' })).toContain('Wrong email');
     expect(authErrorMessage({ code: 'auth/too-many-requests' })).toContain('Too many');
+    expect(authErrorMessage({ code: 'auth/network-request-failed' })).toContain('Network error');
+    expect(authErrorMessage({ code: 'auth/configuration-not-found' })).toContain(
+      'not set up'
+    );
+    expect(authErrorMessage({ code: 'auth/operation-not-allowed' })).toContain('not enabled');
+    expect(authErrorMessage({ code: 'auth/user-disabled' })).toContain('disabled');
     expect(authErrorMessage(new Error('Custom validation message'))).toBe('Custom validation message');
     expect(authErrorMessage({ code: 'auth/something-new' })).toContain('Something went wrong');
   });
 
   it('maps aborted requests to the slow-network message', () => {
     expect(authErrorMessage(new DOMException('The operation was aborted.', 'AbortError'))).toBe(
+      AUTH_SLOW_NETWORK_MESSAGE
+    );
+    // AbortSignal.timeout() rejects as TimeoutError with the raw text
+    // "signal timed out" — this must never reach the UI either.
+    expect(authErrorMessage(new DOMException('signal timed out', 'TimeoutError'))).toBe(
       AUTH_SLOW_NETWORK_MESSAGE
     );
   });

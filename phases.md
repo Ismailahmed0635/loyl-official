@@ -618,6 +618,39 @@ trial that ended 3 days after sign-up (no production data exists yet).
 
 ---
 
+## Phase 16 - Customer identity once + merged customer view + request visibility (fix round) | Done - verified 2026-10-10
+
+Three reported problems, each fixed in isolation (no schema change):
+1. **Name/phone asked on every QR scan** - root cause A: the camera webview dropped the 30-day
+   `loyl_session` cookie with no localStorage fallback; root cause B: the offers API reported
+   `authenticated: !!customerPhone` while the scan used `withCustomer({ requireName: true })`, so a
+   nameless session got 422 `NAME_REQUIRED` and bounced back to the form.
+2. **Merchant could not see stored customer scan data** - the customers API read only
+   `CustomerStamp`, which has no name and no scan count.
+3. **No sign a pending request reached the merchant** - the PENDING `ScanRequest` was always
+   created, but nothing surfaced it (and the 422 above made it look like the scan never happened).
+
+Files:
+- frontend/lib/customerIdentity.ts            - NEW: `loyl.customer.identity.v1` in localStorage (name + phone, 30-day)
+- frontend/components/customer/CustomerSignIn.tsx - prefill from stored identity, save on submit
+- frontend/app/(customer)/scan/page.tsx        - auto-resume when `offer`/`next` present, `resuming` status, `missingName` fallback
+- frontend/app/(customer)/scan/[offerId]/page.tsx - `NAME_REQUIRED` -> `router.replace('/scan?offer=...')` instead of dead-end
+- frontend/app/api/merchant/customers/route.ts - rewritten: union of `CustomerStamp` + `ScanRequest` keyed by `customerPhone` (4 parallel queries, `distinct: ['customerPhone']`, `CUSTOMER_MERGE_LIMIT = 10_000`); `scanCount` = all ScanRequests, `pendingCount` = PENDING; search matches phone OR name
+- frontend/app/(merchant)/customers/page.tsx   - card shows name/phone, 3-col stats (scans/stamps/rewards), waiting badge; copy: "N customer(s) have checked in at your shop"
+- frontend/lib/api/merchant.ts                 - `CustomerRow`/`CustomerListResponse` extended
+- frontend/app/(merchant)/requests/page.tsx + nav badge - 8s poll so a new PENDING request is seen arriving
+- backend/validation/schemas.ts(+test)         - `customerListQuerySchema.q` max 20 -> 40
+
+Verified 2026-10-10: `npm run typecheck` clean, `npm test` **423/423**, `npm run build` OK, all 9
+smokes green (phase1 25, phase2 83, phase3 86, phase4 57, phase5 69, phase7 56, phase8 32,
+offer-type 111, menu 46) + `landing-smoke` 83/83 against the production landing origin. Browser:
+repeat scan skips the form (3/3), customer row reads "Rahim Chowdhury / 01712009988 / 1 scan /
+0 stamps / 0 rewards / 1 waiting", nav badge went "Requests 1" -> "Requests 2" within one 8s poll
+on a live second scan. **No web approval** - Phase 10's app-device gate is untouched; the fix is
+visibility, not permission.
+
+---
+
 ## Rules for Every Phase
 - Read brain.md before starting
 - Do NOT skip phases

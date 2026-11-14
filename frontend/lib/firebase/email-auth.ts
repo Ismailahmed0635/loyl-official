@@ -13,10 +13,11 @@
  */
 
 import { getFirebaseAuth } from '@/lib/firebase/client';
+import { AUTH_SLOW_NETWORK_MESSAGE, isTimeoutOrAbort } from '@/lib/fetchErrors';
 
-/** Shown when any auth network step stalls — every await below is bounded. */
-export const AUTH_SLOW_NETWORK_MESSAGE =
-  'Taking too long — check your connection and try again.';
+// Re-exported so existing callers keep one import site; the constant itself
+// lives in the Firebase-free fetchErrors module (see its header).
+export { AUTH_SLOW_NETWORK_MESSAGE };
 
 /** Budgets: the Firestore profile write is best-effort, never a blocker. */
 export const REGISTER_TIMEOUT_MS = 30_000;
@@ -86,10 +87,9 @@ export function buildUserDoc(uid: string, email: string, phone?: string): UserDo
 
 /** Firebase code → user-friendly message. Unknown → safe fallback. */
 export function authErrorMessage(e: unknown): string {
-  // AbortSignal.timeout rejections (fetch) carry name, not code.
-  if (typeof e === 'object' && e !== null && 'name' in e && (e as { name: unknown }).name === 'AbortError') {
-    return AUTH_SLOW_NETWORK_MESSAGE;
-  }
+  // Abort/timeout rejections (fetch) carry a name, not a code — and
+  // AbortSignal.timeout() reports `TimeoutError`, not `AbortError`.
+  if (isTimeoutOrAbort(e)) return AUTH_SLOW_NETWORK_MESSAGE;
   const code =
     typeof e === 'object' && e !== null && 'code' in e
       ? String((e as { code: unknown }).code)
@@ -109,6 +109,15 @@ export function authErrorMessage(e: unknown): string {
       return 'Too many attempts. Try again later.';
     case 'auth/network-request-failed':
       return 'Network error. Check your connection and retry.';
+    case 'auth/configuration-not-found':
+      // The Email/Password provider or the auth domain is not provisioned on
+      // the Firebase project — surfacing as a useless generic "Something went
+      // wrong" was misleading the user into thinking the app was broken.
+      return 'Sign-in is not set up on the server right now. Please try again later.';
+    case 'auth/operation-not-allowed':
+      return 'This sign-in method is not enabled yet. Please contact support.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled. Please contact support.';
     default:
       if (e instanceof Error && e.message) return e.message;
       return 'Something went wrong. Please try again.';
@@ -191,6 +200,23 @@ export async function loginWithEmail(email: string, password: string): Promise<{
       AUTH_SLOW_NETWORK_MESSAGE
     );
     return { uid: cred.user.uid, email: cred.user.email };
+  } catch (e) {
+    throw new Error(authErrorMessage(e));
+  }
+}
+
+/** Sign in or register with Google (one tap, no typing). */
+export async function signInWithGoogle(): Promise<{ uid: string; email: string | null; isNewUser: boolean }> {
+  try {
+    const auth = await withTimeout(getFirebaseAuth(), ID_TOKEN_TIMEOUT_MS, AUTH_SLOW_NETWORK_MESSAGE);
+    const { signInWithPopup, GoogleAuthProvider } = await import('firebase/auth');
+    const provider = new GoogleAuthProvider();
+    const cred = await withTimeout(signInWithPopup(auth, provider), REGISTER_TIMEOUT_MS, AUTH_SLOW_NETWORK_MESSAGE);
+    return {
+      uid: cred.user.uid,
+      email: cred.user.email,
+      isNewUser: !!(cred as { additionalUserInfo?: { isNewUser: boolean } }).additionalUserInfo?.isNewUser,
+    };
   } catch (e) {
     throw new Error(authErrorMessage(e));
   }

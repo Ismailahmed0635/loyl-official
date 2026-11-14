@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withMerchant } from '@/backend/api/handler';
-import { checkRateLimit, recordHit, MUTATION_MERCHANT } from '@/backend/rateLimit';
+import { rateLimitGate, MUTATION_MERCHANT } from '@/backend/rateLimit';
 import { saveMenuSchema } from '@/backend/validation/schemas';
 import { allocateSlug, menuInclude, serializeMenu, type MenuWithCategories } from '@/backend/menu';
 import { gateMenuWrite } from '@/backend/subscription';
@@ -55,13 +55,12 @@ export const GET = withMerchant(async (req: NextRequest, _session, merchant) => 
 // reason about; the client always sends the full editor payload.
 // `publish: true` stamps `publishedAt`, which is what flips the public page on.
 export const PUT = withMerchant(async (req: NextRequest, _session, merchant) => {
-  const gate = checkRateLimit(`menu-save:${merchant.id}`, MUTATION_MERCHANT);
+  const gate = await rateLimitGate(`menu-save:${merchant.id}`, MUTATION_MERCHANT);
   if (!gate.allowed) {
     return apiError('Too many saves. Please wait a few minutes and try again.', 'RATE_LIMITED', 429, {
       retryAfterMs: gate.retryAfterMs,
     });
   }
-  recordHit(`menu-save:${merchant.id}`, MUTATION_MERCHANT);
 
   // Subscription gate: the digital menu card is paid, and expired = read-only.
   const sub = gateMenuWrite(merchant);

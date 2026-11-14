@@ -1,5 +1,5 @@
 import { BusinessSetupInput, EmailSessionInput } from '@/backend/validation/schemas';
-import { AUTH_SLOW_NETWORK_MESSAGE } from '@/lib/firebase/email-auth';
+import { abortError } from '@/lib/fetchErrors';
 import { clearCache } from '@/lib/api/cache';
 
 /** fetch() has no default timeout — bound every auth POST so the UI can't hang. */
@@ -15,10 +15,7 @@ async function postJson(path: string, data: unknown) {
       signal: AbortSignal.timeout(AUTH_FETCH_TIMEOUT_MS),
     });
   } catch (e) {
-    if (typeof e === 'object' && e !== null && 'name' in e && (e as { name: unknown }).name === 'AbortError') {
-      throw new Error(AUTH_SLOW_NETWORK_MESSAGE);
-    }
-    throw e;
+    throw abortError(e) ?? e;
   }
   return res.json();
 }
@@ -42,6 +39,10 @@ export function getAuthMe(): Promise<any> {
   if (authMePromise && Date.now() < authMeExpiresAt) return authMePromise;
 
   authMePromise = fetch('/api/auth/me', { signal: AbortSignal.timeout(AUTH_FETCH_TIMEOUT_MS) })
+    .catch((e) => {
+      // A stall here would otherwise surface as raw "signal timed out" in the shell.
+      throw abortError(e) ?? e;
+    })
     .then((res) => res.json())
     .then((payload) => {
       // HTTP-error payloads ({success:false}) are live state, not cacheable —
@@ -74,6 +75,8 @@ export async function logout() {
     const res = await fetch('/api/auth/logout', {
       method: 'POST',
       signal: AbortSignal.timeout(AUTH_FETCH_TIMEOUT_MS),
+    }).catch((e) => {
+      throw abortError(e) ?? e;
     });
     return res.json();
   } finally {

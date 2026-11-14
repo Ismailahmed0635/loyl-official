@@ -33,7 +33,7 @@ const TABS: { label: string; value: StatusTab }[] = [
   { label: 'All', value: 'ALL' },
 ];
 
-const TIER_OPTIONS: AdminTier[] = ['FREE', 'MONTHLY', 'YEARLY', 'PREMIUM'];
+const TIER_OPTIONS: AdminTier[] = ['FREE', 'STARTER', 'GROWTH', 'ENTERPRISE'];
 
 /** /admin/billing — BUILD.md payment verification table (bKash/Nagad). */
 export default function AdminBillingPage() {
@@ -55,7 +55,7 @@ export default function AdminBillingPage() {
     null
   );
   /** Tier the admin assigns when confirming an approval (Phase 7). */
-  const [tierChoice, setTierChoice] = useState<AdminTier>('MONTHLY');
+  const [tierChoice, setTierChoice] = useState<AdminTier>('STARTER');
   const [lightbox, setLightbox] = useState<{ url: string; title: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -325,7 +325,7 @@ export default function AdminBillingPage() {
                             <p className="font-mono text-xs text-on-surface-variant">{row.trxId}</p>
                           </>
                         ) : (
-                          <span className="font-body-sm text-body-sm">Free tier — no transfer</span>
+                          <span className="font-body-sm text-body-sm">No payment — free approval</span>
                         )}
                       </td>
                       <td className="px-3 py-4 font-label-lg text-label-lg text-on-surface tabular-nums">
@@ -443,7 +443,7 @@ export default function AdminBillingPage() {
               {TIER_OPTIONS.map((value) => (
                 <option key={value} value={value}>
                   {TIER_LABELS[value]}
-                  {value !== 'FREE' ? ` — ৳${planFor(value).priceBdt.toLocaleString('en-US')}` : ''}
+                  {value === 'ENTERPRISE' ? ' — custom price' : value !== 'FREE' ? ` — ৳${planFor(value).priceBdt.toLocaleString('en-US')}` : ''}
                 </option>
               ))}
             </select>

@@ -1,15 +1,10 @@
 /**
- * backend/rateLimit.ts — tiny in-memory throttle (SEC-02/ST-02).
+ * backend/rateLimit.ts — throttle (SEC-02/ST-02).
  *
- * Same contract as the admin-login throttle in `backend/admin.ts`, extracted
- * so OTP send/verify (and later checkout/extract) share one implementation:
- * max hits per key per window, 429 + retryAfterMs on excess, expired windows
- * swept on every check so idle keys never accumulate (ST-02 fix).
- *
- * Single-instance scope, like the admin throttle: the effective limit is
- * `max × instanceCount` on a multi-instance deploy. OTP abuse is
- * cost-driven (SMS/OpenAI spend), so this is a spend brake, not a security
- * boundary — the security boundaries are the OTP entropy + expiry.
+ * Two layers: the original in-memory fixed window (local dev, unit tests,
+ * and fallback), plus `rateLimitGate` which prefers shared Redis so the
+ * limit holds across Vercel instances. Redis errors always fall back to
+ * memory — throttling degrades, requests never 500.
  */
 
 export interface RateLimitRule {
@@ -59,6 +54,28 @@ export function recordHit(key: string, rule: RateLimitRule, now: number = Date.n
 export function rateLimitSize(now: number = Date.now()): number {
   sweep(now);
   return buckets.size;
+}
+
+/**
+ * Shared async gate for route handlers: Redis first (cross-instance), the
+ * in-memory window on miss/error. Single call — check + hit are atomic, so
+ * concurrent requests cannot both slip under max.
+ */
+export async function rateLimitGate(
+  key: string,
+  rule: RateLimitRule,
+  now: number = Date.now()
+): Promise<{ allowed: boolean; retryAfterMs: number }> {
+  try {
+    const { redisRateGate } = await import('./redis');
+    const shared = await redisRateGate(key, rule.max, rule.windowMs);
+    if (shared) return shared;
+  } catch {
+    // Fall through to memory.
+  }
+  const gate = checkRateLimit(key, rule, now);
+  if (gate.allowed) recordHit(key, rule, now);
+  return gate;
 }
 
 /**

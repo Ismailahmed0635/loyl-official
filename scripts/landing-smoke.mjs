@@ -17,7 +17,7 @@
 const BASE = (process.argv[2] || 'https://loyl-landing.vercel.app').replace(/\/+$/, '');
 /** The app origin — conversion CTAs must navigate here, never to an anchor. */
 const APP = 'https://loyl-self.vercel.app';
-const WELCOME = `${APP}/welcome`;
+const DASHBOARD = `${APP}/dashboard`;
 /** IndexNow ownership key — served as `/<key>.txt`, quoted in every ping. */
 const INDEXNOW_KEY = 'b2ee1f8bf889fae748d5715a08ec77d0';
 /** Search Console HTML-file verification — must stay published at the root. */
@@ -141,7 +141,7 @@ async function main() {
   check('Referrer-Policy present', hdr('referrer-policy').length > 0);
 
   // --- CTA wiring to the app origin --------------------------------------
-  check('CTAs point at the app /welcome', home.body.includes(WELCOME));
+  check('CTAs point at the app /dashboard', home.body.includes(DASHBOARD));
 
   // Every conversion CTA must be a real navigation. `script.js` calls
   // preventDefault() on every `a[href^="#"]` to smooth-scroll, so a CTA parked
@@ -157,7 +157,7 @@ async function main() {
   check(`homepage has conversion CTAs (found ${ctas.length})`, ctas.length >= 8, `${ctas.length}`);
   for (const a of ctas) {
     const href = (a.attrs.match(/href="([^"]*)"/) || [])[1];
-    check(`CTA "${a.text.slice(0, 30)}" -> /welcome`, href === WELCOME, `got ${href}`);
+    check(`CTA "${a.text.slice(0, 30)}" -> /dashboard`, href === DASHBOARD, `got ${href}`);
   }
 
   // --- robots + sitemap ---------------------------------------------------
@@ -207,7 +207,7 @@ async function main() {
     check(`${p} has og:image`, r.body.includes(`content="${BASE}/og.png"`));
     check(`${p} exactly one <h1>`, (r.body.match(/<h1[ >]/g) || []).length === 1);
     check(`${p} has no localhost`, !r.body.includes('localhost'));
-    check(`${p} Start Free Trial -> /welcome`, r.body.includes(`href="${WELCOME}">Start Free Trial`));
+    check(`${p} Start Free Trial -> /dashboard`, r.body.includes(`href="${DASHBOARD}">Start Free Trial`));
     check(`${p} has no anchored conversion CTA`, !/href="(?:index\.html)?#pricing">Start Free/.test(r.body));
   }
 

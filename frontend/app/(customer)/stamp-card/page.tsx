@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { QrCode, AlertCircle, Gift, Store } from 'lucide-react';
+import { QrCode, AlertCircle, Gift, Store, Clock } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -11,7 +11,13 @@ import { FadeUp } from '@/components/animations/FadeUp';
 import { StampGrid } from '@/components/customer/StampGrid';
 import { RewardModal } from '@/components/customer/RewardModal';
 import { useRewardClaim } from '@/components/customer/useRewardClaim';
-import { listCustomerCards, CustomerCardItem, CardsResponse, RedeemResult } from '@/lib/api/customer';
+import {
+  listCustomerCards,
+  CustomerCardItem,
+  CardsResponse,
+  RedeemResult,
+  PendingRequestItem,
+} from '@/lib/api/customer';
 import { REWARD_LABELS } from '@/lib/constants';
 import { timeUntil } from '@/lib/format';
 
@@ -22,6 +28,7 @@ import { timeUntil } from '@/lib/format';
 export default function StampCardPage() {
   const router = useRouter();
   const [cards, setCards] = useState<CustomerCardItem[]>([]);
+  const [pending, setPending] = useState<PendingRequestItem[]>([]);
   const [totals, setTotals] = useState({ cards: 0, stampsCollected: 0, totalRedeemed: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,27 +46,44 @@ export default function StampCardPage() {
     }, [])
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  const load = useCallback(async (silent = false) => {
+    // Silent refreshes (Part 2: polling / tab-focus) must not flash skeletons or
+    // wipe a loaded page with a transient network error.
+    if (!silent) {
+      setLoading(true);
+      setError('');
+    }
     try {
       const res = await listCustomerCards();
       if (res?.success) {
         const data = res.data as CardsResponse;
         setCards(data.cards);
+        setPending(data.pendingRequests ?? []);
         setTotals(data.totals);
-      } else {
+      } else if (!silent) {
         setError(res?.error?.message || 'Failed to load your stamp cards.');
       }
     } catch {
-      setError('Network error — check your connection and try again.');
+      if (!silent) setError('Network error — check your connection and try again.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     load();
+    // Part 2: a stamp can arrive while the page is already open (the merchant
+    // approves a check-in minutes later). Refresh quietly every 10s while the
+    // tab is visible, and immediately when the customer returns to this tab.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load(true);
+    };
+    const timer = setInterval(onVisible, 10_000);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [load]);
 
   if (loading) {
@@ -81,7 +105,7 @@ export default function StampCardPage() {
           <p className="font-body-sm text-body-sm font-medium">{error}</p>
         </div>
         <button
-          onClick={load}
+          onClick={() => load()}
           className="min-h-[44px] px-4 rounded-input bg-brand-green text-white font-label-lg text-label-lg shadow-inset-light hover:bg-brand-greenDark transition-colors"
         >
           Try again
@@ -101,7 +125,45 @@ export default function StampCardPage() {
         />
       </FadeUp>
 
-      {cards.length === 0 ? (
+      {/* Check-ins waiting for the shop to approve — the customer's StampGrid
+          row won't exist until approval, so this is where they see it. */}
+      {pending.map((p) => (
+        <FadeUp key={p.requestId}>
+          <Card className="p-5 flex flex-col gap-3 border-brand-amber/30 bg-brand-amber/5">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-input bg-brand-amber/15 text-brand-amber shrink-0 overflow-hidden">
+                {p.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.logoUrl} alt="" className="w-10 h-10 rounded-input object-cover" />
+                ) : (
+                  <Store size={18} />
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-label-lg text-label-lg text-on-surface truncate">
+                  {p.businessName}
+                </p>
+                <p className="font-body-sm text-body-sm text-on-surface-variant truncate">
+                  {p.category}
+                </p>
+              </div>
+              <Badge tone="neutral" uppercase className="shrink-0 border border-brand-amber/40 bg-brand-amber/15 text-amber-800">
+                Waiting
+              </Badge>
+            </div>
+
+            <div className="flex items-center gap-2 rounded-pill border border-hairline bg-surface-container-low px-3 py-2">
+              <Clock className="w-4 h-4 text-brand-amber shrink-0" />
+              <p className="font-body-sm text-body-sm text-on-surface-variant truncate">
+                Waiting for {p.businessName} to approve your{" "}
+                <span className="font-semibold text-on-surface">{p.offerTitle}</span> stamp.
+              </p>
+            </div>
+          </Card>
+        </FadeUp>
+      ))}
+
+      {cards.length === 0 && pending.length === 0 ? (
         <FadeUp>
           <Card className="p-6 flex flex-col items-center text-center gap-3">
             <span className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-primary-fixed text-brand-green">

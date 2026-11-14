@@ -3,6 +3,7 @@ import type {
   AdminMerchantListInput,
   AdminPaymentListInput,
 } from '@/backend/validation/schemas';
+import { abortError } from '@/lib/fetchErrors';
 
 // --- Types -----------------------------------------------------------------
 
@@ -55,7 +56,7 @@ export interface AdminPaymentRow {
 }
 
 /** Tiers an approval can grant (mirrors backend SUBSCRIPTION_TIERS). */
-export type AdminTier = 'FREE' | 'MONTHLY' | 'YEARLY' | 'PREMIUM';
+export type AdminTier = 'FREE' | 'STARTER' | 'GROWTH' | 'ENTERPRISE';
 
 export interface AdminPaymentsResponse {
   payments: AdminPaymentRow[];
@@ -86,7 +87,12 @@ export interface AdminStats {
 const API_TIMEOUT_MS = 15_000;
 
 async function request(path: string, init?: RequestInit) {
-  const res = await fetch(path, { ...init, signal: AbortSignal.timeout(API_TIMEOUT_MS) });
+  const res = await fetch(path, { ...init, signal: AbortSignal.timeout(API_TIMEOUT_MS) }).catch(
+    (e) => {
+      // Never let "signal timed out" reach a page's error banner verbatim.
+      throw abortError(e) ?? e;
+    }
+  );
   return res.json();
 }
 

@@ -76,6 +76,12 @@ function BusinessSetupContent() {
       } else {
         const code: string | undefined = res.error?.code;
         const message: string = res.error?.message || 'Failed to save business profile';
+        // INTERNAL_ERROR responses carry a server-side requestId for log
+        // correlation — show it so a failure report is actionable.
+        const ref: string | undefined = (res as { data?: { requestId?: unknown } }).data
+          ?.requestId as string | undefined;
+        const withRef =
+          code === 'INTERNAL_ERROR' && ref ? `${message} (ref ${ref})` : message;
         if (code === 'PHONE_TAKEN') {
           setFieldErrors({ phoneNumber: message });
         } else if (code === 'VALIDATION_ERROR') {
@@ -84,7 +90,7 @@ function BusinessSetupContent() {
           else if (/phone/i.test(message)) setFieldErrors({ phoneNumber: message });
           else setFormError(message);
         } else {
-          setFormError(message);
+          setFormError(withRef);
         }
       }
     } catch (err) {

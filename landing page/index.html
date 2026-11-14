@@ -29,10 +29,12 @@
 <!--
   APP_ORIGIN — the Next.js app's public origin.
   Every conversion CTA (Sign In / Get Started / Start Free Trial / Start Your
-  Free Trial) points at `${APP_ORIGIN}/welcome`, which is the app's single
-  phone -> email auth entry and serves BOTH a first-time registration
-  (-> /business-setup) and a returning sign-in. There is no separate register
-  screen. Do NOT point one of these at an in-page anchor: `script.js` calls
+  Free Trial) points at `${APP_ORIGIN}/dashboard`, NOT /welcome: /welcome is
+  the sign-in form and never checks for an existing session, so a logged-in
+  merchant clicking a CTA saw the login screen again (2026-10-13 bug).
+  /dashboard fixes it both ways — the middleware lets a valid `loyl_session`
+  straight in, and bounces a guest to /welcome automatically. First-time
+  registration still flows through /welcome (-> /business-setup). Do NOT point one of these at an in-page anchor: `script.js` calls
   preventDefault() on every `a[href^="#"]` to smooth-scroll, so an anchored
   CTA never navigates (that was the 2026-10-05 bug — 7 CTAs sat on
   `#pricing`). In-page anchors are only for the nav "Pricing" link and the
@@ -59,8 +61,8 @@
 <!-- Structured data (JSON-LD — Google's preferred format).
      FAQPage is deliberately absent: Google retired FAQ rich results for all
      sites on 2026-05-07, so the visible FAQ carries no markup (the Q&A is
-     crawlable HTML either way). No rating/review markup either — the "4.9/5.0"
-     pill is product mock-up copy, not a collected review. -->
+     crawlable HTML either way). No rating/review markup is included — the
+     landing shows no collected reviews or star ratings. -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -171,8 +173,7 @@
 <header class="nav" id="top">
   <div class="wrap nav-inner">
     <a class="brand" href="#top">
-      <span class="brand-mark">L</span>
-      <span class="brand-name">Loyl</span>
+      <img class="brand-logo" src="logo.png" alt="Loyl">
     </a>
 
     <nav class="nav-links" aria-label="Primary">
@@ -183,8 +184,8 @@
     </nav>
 
     <div class="nav-actions">
-      <a class="nav-signin" href="https://loyl-self.vercel.app/welcome">Sign In</a>
-      <a class="btn btn-primary btn-sm" href="https://loyl-self.vercel.app/welcome">Start Free Trial</a>
+      <a class="nav-signin" href="https://loyl-self.vercel.app/dashboard">Sign In</a>
+      <a class="btn btn-primary btn-sm" href="https://loyl-self.vercel.app/dashboard">Start Free Trial</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu">
         <span></span><span></span><span></span>
       </button>
@@ -198,8 +199,8 @@
         <a href="#how-it-works">How It Works</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
-        <a href="https://loyl-self.vercel.app/welcome">Sign In</a>
-        <a class="mobile-cta" href="https://loyl-self.vercel.app/welcome">Start Free Trial</a>
+        <a href="https://loyl-self.vercel.app/dashboard">Sign In</a>
+        <a class="mobile-cta" href="https://loyl-self.vercel.app/dashboard">Start Free Trial</a>
       </nav>
     </div>
   </div>
@@ -217,9 +218,10 @@
       <span class="pill-tag" data-reveal style="--d:.05s">Digital loyalty for modern businesses</span>
       <h1 class="h1" data-reveal style="--d:.12s">Turn every visit into a repeat customer</h1>
       <p class="lede" data-reveal style="--d:.19s">QR-based loyalty program for cafés, salons, gyms, restaurants &amp; more. Set up in 2 minutes, no app download needed.</p>
+      <p class="hero-approach" data-reveal style="--d:.22s">Start using Loyl today — set up your loyalty program in 2 minutes, no app download needed.</p>
 
       <div class="hero-cta" data-reveal style="--d:.26s">
-        <a class="btn btn-primary btn-lg" href="https://loyl-self.vercel.app/welcome">Start Free Trial</a>
+        <a class="btn btn-primary btn-lg" href="https://loyl-self.vercel.app/dashboard">Start Free Trial</a>
         <a class="btn btn-outline-a btn-lg" href="#how-it-works">See How It Works</a>
       </div>
 
@@ -229,7 +231,7 @@
         <span><i>✓</i> Cancel anytime</span>
       </div>
 
-      <p class="hero-signin" data-reveal style="--d:.38s">Already have a business? <a href="https://loyl-self.vercel.app/welcome">Sign In</a></p>
+      <p class="hero-signin" data-reveal style="--d:.38s">Already have a business? <a href="https://loyl-self.vercel.app/dashboard">Sign In</a></p>
     </div>
 
     <!-- Visual -->
@@ -243,11 +245,6 @@
       <div class="float-pill fp-2">
         <span class="fp-ico">✓</span>
         <p class="t">Stamp added!</p>
-      </div>
-
-      <div class="float-pill fp-3">
-        <span class="fp-ico"><svg class="ico"><use href="#i-spark"/></svg></span>
-        <p class="t">4.9 / 5.0 Rating</p>
       </div>
 
       <div class="device-stack">
@@ -445,16 +442,9 @@
 <section class="ribbon">
   <div class="wrap wrap-md">
     <div class="section-head" style="margin-bottom:44px">
-      <span class="eyebrow" data-reveal>Proven Performance</span>
-      <h2 class="h2" data-reveal style="--d:.06s">Trusted by businesses across Bangladesh</h2>
-      <p data-reveal style="--d:.12s">From premier Dhaka cafes to bustling Chittagong retail salons.</p>
-    </div>
-
-    <div class="metrics">
-      <div class="metric" data-reveal style="--d:.02s"><b data-count="500" data-suffix="+">0</b><span>Active Businesses</span></div>
-      <div class="metric" data-reveal style="--d:.1s"><b data-count="50" data-suffix="K+">0</b><span>Stamps Collected</span></div>
-      <div class="metric" data-reveal style="--d:.18s"><b data-count="40" data-suffix="%">0</b><span>Avg. Repeat Rate Boost</span></div>
-    </div>
+      <span class="eyebrow" data-reveal>Loyalty That Brings Customers Back</span>
+      <h2 class="h2" data-reveal style="--d:.06s">Turn every visit into a repeat customer</h2>
+      <p data-reveal style="--d:.12s">Digital stamp cards for cafes, salons, and shops across Bangladesh — no app download needed for your customers.</p>
 
     <div class="showcase">
       <!-- Scan phone -->
@@ -551,7 +541,7 @@
             <li>Digital Menu Not Included</li>
           </ul>
         </div>
-        <a class="btn btn-outline-p btn-block btn-sm" href="https://loyl-self.vercel.app/welcome">Get Started</a>
+        <a class="btn btn-outline-p btn-block btn-sm" href="https://loyl-self.vercel.app/dashboard">Get Started</a>
       </div>
 
       <!-- Starter -->
@@ -570,7 +560,7 @@
             <li>FREE Table-Stand QR Scanner</li>
           </ul>
         </div>
-        <a class="btn btn-outline-p btn-block btn-sm" href="https://loyl-self.vercel.app/welcome">Start Free Trial</a>
+        <a class="btn btn-outline-p btn-block btn-sm" href="https://loyl-self.vercel.app/dashboard">Start Free Trial</a>
       </div>
 
       <!-- Growth -->
@@ -589,7 +579,7 @@
             <li>Dedicated Priority Support</li>
           </ul>
         </div>
-        <a class="btn btn-primary btn-block btn-sm" href="https://loyl-self.vercel.app/welcome">Start Free Trial</a>
+        <a class="btn btn-primary btn-block btn-sm" href="https://loyl-self.vercel.app/dashboard">Start Free Trial</a>
       </div>
 
       <!-- Enterprise -->
@@ -669,9 +659,9 @@
     <h2 data-reveal>Ready to grow your business?</h2>
     <p class="sub" data-reveal style="--d:.08s">Join 500+ businesses using Loyl to increase repeat customers.</p>
     <div data-reveal style="--d:.16s">
-      <a class="btn btn-white btn-lg" href="https://loyl-self.vercel.app/welcome">Start Your Free Trial</a>
+      <a class="btn btn-white btn-lg" href="https://loyl-self.vercel.app/dashboard">Start Your Free Trial</a>
     </div>
-    <p class="cta-signin" data-reveal style="--d:.22s">Already have a business? <a href="https://loyl-self.vercel.app/welcome">Sign In</a></p>
+    <p class="cta-signin" data-reveal style="--d:.22s">Already have a business? <a href="https://loyl-self.vercel.app/dashboard">Sign In</a></p>
   </div>
 
   <div class="cta-phone" data-reveal="zoom" style="--d:.28s">
@@ -711,8 +701,7 @@
 <footer class="footer">
   <div class="wrap footer-inner">
     <div class="footer-brand">
-      <span class="brand-mark">L</span>
-      <b>Loyl</b>
+      <img class="footer-logo" src="logo.png" alt="Loyl">
       <span>Digital loyalty platform for modern businesses in Bangladesh.</span>
     </div>
 

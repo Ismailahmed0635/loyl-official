@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withMerchant } from '@/backend/api/handler';
-import { checkRateLimit, recordHit, MUTATION_MERCHANT } from '@/backend/rateLimit';
+import { rateLimitGate, MUTATION_MERCHANT } from '@/backend/rateLimit';
 import { gateMenuWrite } from '@/backend/subscription';
 import {
   MENU_DEFAULT_BACKGROUND,
@@ -48,13 +48,12 @@ export const GET = withMerchant(async (_req: NextRequest, _session, merchant) =>
 // The menu row is created on first upload (unpublished) so the photo has
 // somewhere to live before the merchant has written a single item.
 export const POST = withMerchant(async (req: NextRequest, _session, merchant) => {
-  const gate = checkRateLimit(`menu-photo:${merchant.id}`, MUTATION_MERCHANT);
+  const gate = await rateLimitGate(`menu-photo:${merchant.id}`, MUTATION_MERCHANT);
   if (!gate.allowed) {
     return apiError('Too many uploads. Please wait a few minutes and try again.', 'RATE_LIMITED', 429, {
       retryAfterMs: gate.retryAfterMs,
     });
   }
-  recordHit(`menu-photo:${merchant.id}`, MUTATION_MERCHANT);
 
   // Subscription gate: uploading is part of building the menu.
   const sub = gateMenuWrite(merchant);

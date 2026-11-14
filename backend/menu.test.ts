@@ -5,6 +5,7 @@ import path from 'node:path';
 import {
   allocateSlug,
   baseSlug,
+  buildMenuJsonLd,
   extractJsonObject,
   parseVisionJson,
   saveMenuPhoto,
@@ -352,5 +353,35 @@ describe('photo storage — validates before writing', () => {
       code: 'INVALID_FILE_TYPE',
     });
     expect(await readdir(target)).toEqual([]);
+  });
+});
+
+describe('buildMenuJsonLd — local SEO Restaurant schema', () => {
+  it('keeps Bengali/English names verbatim and links the menu url', () => {
+    const ld = buildMenuJsonLd({
+      slug: 'cafe-corner',
+      title: 'Lunch Menu',
+      businessName: 'ক্যাফে কর্নার Cafe Corner',
+      category: 'Restaurant',
+      address: 'House 12, Banani, Dhaka',
+      branchName: 'Banani',
+      baseUrl: 'https://loyl.io/',
+    });
+    expect(ld).toMatchObject({
+      '@type': 'Restaurant',
+      name: 'ক্যাফে কর্নার Cafe Corner',
+      url: 'https://loyl.io/menu/cafe-corner',
+      servesCuisine: 'Restaurant',
+    });
+  });
+
+  it('omits address block when merchant set none', () => {
+    const ld = buildMenuJsonLd({
+      slug: 'x',
+      title: 'Menu',
+      businessName: 'X',
+      baseUrl: 'https://loyl.io',
+    });
+    expect(ld.address).toBeUndefined();
   });
 });

@@ -856,7 +856,7 @@ export const adminActionListQuerySchema = z.object({
 });
 
 /** Phase 7: every tier an approval can grant (admin dropdown + checkout request). */
-export const SUBSCRIPTION_TIERS = ['FREE', 'MONTHLY', 'YEARLY', 'PREMIUM'] as const;
+export const SUBSCRIPTION_TIERS = ['FREE', 'STARTER', 'GROWTH', 'ENTERPRISE'] as const;
 
 export const subscriptionTierSchema = z.enum(SUBSCRIPTION_TIERS, {
   errorMap: () => ({ message: 'Unknown subscription tier' }),
@@ -888,8 +888,11 @@ export type PaymentActionInput = z.infer<typeof paymentActionSchema>;
 /**
  * POST /api/billing/checkout — multipart fields (the screenshot File is
  * validated by backend/billing.ts before anything touches disk).
- * FREE requests carry no payment details; paid tiers need all four fields.
- * The route drops payment fields entirely for FREE before parsing.
+ * FREE requests carry no payment details; paid tiers need all four fields
+ * UNLESS `noPayment` is 'true' — the merchant asks for free/manual approval
+ * (e.g. owner-granted access) and the admin decides the tier on approve.
+ * The route drops payment fields entirely for FREE and for noPayment
+ * requests before parsing.
  */
 export const checkoutSchema = z
   .object({
@@ -914,9 +917,11 @@ export const checkoutSchema = z
       .positive({ message: 'Amount must be greater than zero' })
       .max(1_000_000, { message: 'Amount cannot exceed 1,000,000 BDT' })
       .optional(),
+    noPayment: z.enum(['true', 'false']).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.requestedTier === 'FREE') return;
+    if (data.noPayment === 'true') return;
     if (!data.paymentMethod) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

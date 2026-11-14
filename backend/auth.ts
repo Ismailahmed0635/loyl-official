@@ -56,8 +56,9 @@ export interface SessionPayload {
 /**
  * RT-01 revocation set: jti → expiry epoch ms. Entries die with the token
  * they belong to (swept on every check), so the map cannot grow without
- * bound. Single-instance scope like the other in-memory guards — a
- * multi-instance deploy needs this in shared storage (documented, P-12 era).
+ * bound. Local layer only — `revokeSessionToken` also writes Redis so the
+ * revocation holds across instances, and `verifySessionToken` reads Redis
+ * first with this map as fallback.
  */
 const revokedJtis = new Map<string, number>();
 
@@ -76,7 +77,8 @@ export function isSessionRevoked(jti: string | undefined, now: number = Date.now
 
 /**
  * Revokes one token (logout path): verifies the signature, then records its
- * jti until its natural expiry. Returns false when the token was never valid.
+ * jti until its natural expiry — in memory AND in shared Redis, so the
+ * logout holds on every instance. Returns false when the token was never valid.
  */
 export async function revokeSessionToken(token: string): Promise<boolean> {
   try {
@@ -86,6 +88,12 @@ export async function revokeSessionToken(token: string): Promise<boolean> {
     const expMs =
       typeof payload.exp === 'number' ? payload.exp * 1000 : Date.now() + 30 * 24 * 60 * 60 * 1000;
     revokedJtis.set(parsed.data.jti, expMs);
+    try {
+      const { redisRevokeJti } = await import('./redis');
+      await redisRevokeJti(parsed.data.jti, Math.max(0, expMs - Date.now()));
+    } catch {
+      // Memory set above is the fallback — logout still holds locally.
+    }
     return true;
   } catch {
     return false;
@@ -113,7 +121,14 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
     if (!parsed.success) return null;
     const p = parsed.data;
     // RT-01: a logged-out token stays dead until its natural expiry.
+    // Shared Redis first (logout from another instance), memory fallback.
     if (isSessionRevoked(p.jti)) return null;
+    try {
+      const { redisIsJtiRevoked } = await import('./redis');
+      if (await redisIsJtiRevoked(p.jti)) return null;
+    } catch {
+      // Memory check above already ran — fail open to it, never to a 500.
+    }
     return {
       userId: p.userId,
       phoneNumber: p.phoneNumber,

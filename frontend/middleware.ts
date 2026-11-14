@@ -41,7 +41,7 @@ function getJwtSecret(): Uint8Array {
 const PUBLIC_PATHS = new Set(['/', '/welcome', '/business-setup', '/admin/login', '/pricing', '/terms', '/privacy']);
 
 /** Customer sign-in entry points: /scan and /scan/[offerId]. */
-const PUBLIC_PREFIXES = ['/scan', '/menu'];
+const PUBLIC_PREFIXES = ['/scan', '/menu', '/menus'];
 
 /** Customer pages (non-entry) — guests re-enter through the scan flow. */
 const CUSTOMER_PREFIXES = ['/stamp-card', '/reward', '/profile'];

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withMerchant } from '@/backend/api/handler';
-import { checkRateLimit, recordHit, EXTRACT_MERCHANT } from '@/backend/rateLimit';
+import { rateLimitGate, EXTRACT_MERCHANT } from '@/backend/rateLimit';
 import { gateMenuWrite } from '@/backend/subscription';
 import {
   VisionError,
@@ -25,13 +25,12 @@ import { db } from '@/backend/db';
  * VISION_FAILED (transport/auth/parse failure).
  */
 export const POST = withMerchant(async (_req: NextRequest, _session, merchant) => {
-  const gate = checkRateLimit(`extract:${merchant.id}`, EXTRACT_MERCHANT);
+  const gate = await rateLimitGate(`extract:${merchant.id}`, EXTRACT_MERCHANT);
   if (!gate.allowed) {
     return apiError('Too many extraction attempts. Please wait a few minutes and try again.', 'RATE_LIMITED', 429, {
       retryAfterMs: gate.retryAfterMs,
     });
   }
-  recordHit(`extract:${merchant.id}`, EXTRACT_MERCHANT);
 
   // Subscription gate: extraction is part of building the menu (and costs
   // model spend, so it must not run for a tier that cannot save the result).

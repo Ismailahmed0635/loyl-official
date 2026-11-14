@@ -355,6 +355,49 @@ export function slugWithSuffix(base: string, n: number): string {
   return `${base.slice(0, Math.max(1, room)).replace(/-+$/, '')}${suffix}`;
 }
 
+/** Input for the public menu JSON-LD block (Step 5.1 local SEO). */
+export interface MenuJsonLdInput {
+  slug: string;
+  title: string;
+  businessName: string;
+  category?: string | null;
+  /** First branch street address, when the merchant set one. */
+  address?: string | null;
+  branchName?: string | null;
+  baseUrl: string;
+}
+
+/**
+ * Schema.org `Restaurant` JSON-LD for a published menu page.
+ * Pure + unit-tested: merchant names stay verbatim (Bengali or English) so
+ * local keywords match what customers type. No `next/*` imports.
+ */
+export function buildMenuJsonLd(input: MenuJsonLdInput): Record<string, unknown> {
+  const url = `${input.baseUrl.replace(/\/+$/, '')}/menu/${input.slug}`;
+  const address = (input.address ?? '').trim();
+  const branch = (input.branchName ?? '').trim();
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Restaurant',
+    name: input.businessName,
+    url,
+    servesCuisine: input.category?.trim() || undefined,
+    address: address
+      ? {
+          '@type': 'PostalAddress',
+          streetAddress: address,
+          ...(branch ? { name: branch } : {}),
+          addressLocality: 'Bangladesh',
+        }
+      : undefined,
+    hasMenu: {
+      '@type': 'Menu',
+      name: input.title,
+      url,
+    },
+  };
+}
+
 // --- Background colour ------------------------------------------------------
 //
 // `normalizeHexColor`, `relativeLuminance`, `contrastOn` and `surfaceOn` live

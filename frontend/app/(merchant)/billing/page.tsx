@@ -95,7 +95,7 @@ export default function BillingPage() {
               </div>
               <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">{subLine()}</p>
             </div>
-            <Button variant="primary" size="md" onClick={() => setModalTier('MONTHLY')}>
+            <Button variant="primary" size="md" onClick={() => setModalTier('STARTER')}>
               <CreditCard size={16} className="mr-1.5" /> Upgrade
             </Button>
           </div>
@@ -130,10 +130,10 @@ export default function BillingPage() {
             >
               <div className="flex items-center justify-between">
                 <span className="font-label-lg text-label-lg text-on-surface">{plan.name}</span>
-                {plan.tier === 'PREMIUM' && <Sparkles size={15} className="text-brand-red" />}
+                {plan.tier === 'ENTERPRISE' && <Sparkles size={15} className="text-brand-red" />}
               </div>
               <p className="mt-2 font-metric-num text-metric-num text-on-surface tabular-nums leading-none">
-                {plan.priceBdt === 0 ? 'Free' : `৳${plan.priceBdt.toLocaleString('en-US')}`}
+                {plan.tier === 'ENTERPRISE' ? 'Custom' : plan.priceBdt === 0 ? 'Free' : `৳${plan.priceBdt.toLocaleString('en-US')}`}
               </p>
               <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
                 {plan.durationDays ? `${plan.durationDays} days` : 'No expiry'}
@@ -194,7 +194,7 @@ export default function BillingPage() {
                           <span className="font-mono text-xs">{row.trxId}</span>
                         </>
                       ) : (
-                        <span className="text-xs">Free tier — no transfer</span>
+                        <span className="text-xs">No payment — free approval</span>
                       )}
                     </td>
                     <td className="px-3 py-3.5 font-label-lg text-label-lg text-on-surface tabular-nums">
@@ -227,7 +227,7 @@ export default function BillingPage() {
 
       <CheckoutModal
         open={modalTier !== null}
-        initialTier={modalTier ?? 'MONTHLY'}
+        initialTier={modalTier ?? 'STARTER'}
         onClose={() => setModalTier(null)}
         onSubmitted={load}
       />

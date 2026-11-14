@@ -666,7 +666,7 @@ describe('Phase 5 Payment Action Schema', () => {
   });
 
   it('accepts an optional Phase 7 tier override and rejects unknown tiers', () => {
-    expect(paymentActionSchema.safeParse({ paymentRequestId: 'abc123', tier: 'PREMIUM' }).success).toBe(true);
+    expect(paymentActionSchema.safeParse({ paymentRequestId: 'abc123', tier: 'GROWTH' }).success).toBe(true);
     expect(paymentActionSchema.safeParse({ paymentRequestId: 'abc123', tier: 'LIFETIME' }).success).toBe(false);
   });
 });
@@ -678,7 +678,7 @@ describe('Phase 7 Checkout Schema', () => {
 
   it('accepts a fully detailed paid request and coerces the amount', () => {
     const parsed = checkoutSchema.safeParse({
-      requestedTier: 'MONTHLY',
+      requestedTier: 'STARTER',
       paymentMethod: 'BKASH',
       senderNumber: '01712345678',
       trxId: '9H7BXK2EF',
@@ -688,9 +688,18 @@ describe('Phase 7 Checkout Schema', () => {
     if (parsed.success) expect(parsed.data.amount).toBe(500);
   });
 
+  it('accepts a paid-tier request with noPayment and no payment details', () => {
+    expect(
+      checkoutSchema.safeParse({ requestedTier: 'GROWTH', noPayment: 'true' }).success
+    ).toBe(true);
+    expect(
+      checkoutSchema.safeParse({ requestedTier: 'STARTER', noPayment: 'false' }).success
+    ).toBe(false);
+  });
+
   it('rejects paid requests missing any required field', () => {
-    const base = { requestedTier: 'MONTHLY', paymentMethod: 'BKASH', senderNumber: '01712345678', trxId: 'TRX123', amount: 500 };
-    expect(checkoutSchema.safeParse({ requestedTier: 'MONTHLY' }).success).toBe(false);
+    const base = { requestedTier: 'STARTER', paymentMethod: 'BKASH', senderNumber: '01712345678', trxId: 'TRX123', amount: 500 };
+    expect(checkoutSchema.safeParse({ requestedTier: 'STARTER' }).success).toBe(false);
     expect(checkoutSchema.safeParse({ ...base, amount: undefined }).success).toBe(false);
     expect(checkoutSchema.safeParse({ ...base, trxId: undefined }).success).toBe(false);
     expect(checkoutSchema.safeParse({ ...base, senderNumber: undefined }).success).toBe(false);
@@ -699,7 +708,7 @@ describe('Phase 7 Checkout Schema', () => {
   });
 
   it('rejects unknown tiers, bad amounts and malformed trx ids', () => {
-    const base = { requestedTier: 'MONTHLY', paymentMethod: 'BKASH', senderNumber: '01712345678', trxId: 'TRX123', amount: 500 };
+    const base = { requestedTier: 'STARTER', paymentMethod: 'BKASH', senderNumber: '01712345678', trxId: 'TRX123', amount: 500 };
     expect(checkoutSchema.safeParse({ ...base, requestedTier: 'LIFETIME' }).success).toBe(false);
     expect(checkoutSchema.safeParse({ ...base, amount: 0 }).success).toBe(false);
     expect(checkoutSchema.safeParse({ ...base, amount: 2_000_000 }).success).toBe(false);

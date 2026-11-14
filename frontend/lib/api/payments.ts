@@ -1,6 +1,8 @@
 // Phase 7 — merchant-facing billing client: plan catalog + checkout calls.
+// Tiers mirror the landing pricing (all monthly): Free trial, Starter ৳500,
+// Growth ৳1000, Enterprise custom.
 
-export type BillingTier = 'FREE' | 'MONTHLY' | 'YEARLY' | 'PREMIUM';
+export type BillingTier = 'FREE' | 'STARTER' | 'GROWTH' | 'ENTERPRISE';
 
 export interface BillingPlan {
   tier: BillingTier;
@@ -14,39 +16,39 @@ export interface BillingPlan {
 export const PLANS: BillingPlan[] = [
   {
     tier: 'FREE',
-    name: 'Free Tier',
+    name: 'Free Trial',
     priceBdt: 0,
-    durationDays: null,
-    blurb: 'Core features with no expiry — request access, we review it manually.',
+    durationDays: 3,
+    blurb: 'Scratch-card offers for one shop — 3 days, then upgrade.',
   },
   {
-    tier: 'MONTHLY',
-    name: '1 Month',
+    tier: 'STARTER',
+    name: 'Starter',
     priceBdt: 500,
     durationDays: 30,
-    blurb: 'Full access for 30 days.',
+    blurb: 'All features incl. digital menu for a single shop, per month.',
   },
   {
-    tier: 'YEARLY',
-    name: '1 Year',
-    priceBdt: 5000,
-    durationDays: 365,
-    blurb: 'Full access for a year — two months free vs monthly.',
+    tier: 'GROWTH',
+    name: 'Growth',
+    priceBdt: 1000,
+    durationDays: 30,
+    blurb: 'Up to 3 branches + priority support, per month.',
   },
   {
-    tier: 'PREMIUM',
-    name: 'Premium',
-    priceBdt: 10000,
-    durationDays: 365,
-    blurb: 'A year of Premium perks and priority support.',
+    tier: 'ENTERPRISE',
+    name: 'Enterprise',
+    priceBdt: 0,
+    durationDays: 30,
+    blurb: 'Unlimited locations, custom price — contact us first.',
   },
 ];
 
 export const TIER_LABELS: Record<BillingTier, string> = {
-  FREE: 'Free',
-  MONTHLY: '1 Month',
-  YEARLY: '1 Year',
-  PREMIUM: 'Premium',
+  FREE: 'Free Trial',
+  STARTER: 'Starter',
+  GROWTH: 'Growth',
+  ENTERPRISE: 'Enterprise',
 };
 
 export function planFor(tier: BillingTier): BillingPlan {

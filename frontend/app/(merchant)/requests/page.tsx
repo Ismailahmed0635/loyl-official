@@ -193,8 +193,10 @@ export default function RequestsPage() {
       )}
 
       {/* Phase 10: approval is app-only, so the dashboard explains it instead
-          of leaving a button that always fails. */}
-      {needsApp && (
+          of leaving a button that always fails. Show the notice on the Waiting
+          tab up front — not only after a failed approval attempt — so the
+          merchant never sees a button that cannot work. */}
+      {(needsApp || (tab === 'PENDING' && rows.length > 0)) && (
         <Card className="flex items-start gap-3 bg-surface-container-low border-hairline">
           <span className="w-9 h-9 rounded-full grid place-items-center bg-surface-container-lowest text-brand-green shrink-0">
             <Smartphone size={18} />

@@ -96,6 +96,76 @@ describe('backend/firebase phone mapping', () => {
     expect(codes).toContain('auth/argument-error');
   });
 
+  it('initializes the Admin app on the v14 namespace shape (no `credential`)', async () => {
+    // Regression: firebase-admin v14 removed the root `credential` namespace,
+    // so `admin.credential.cert(...)` threw `Cannot read properties of
+    // undefined (reading 'cert')` during init → Admin app unavailable →
+    // 401 INVALID_FIREBASE_TOKEN for EVERY sign-in whenever
+    // FIREBASE_PRIVATE_KEY was set (verify-only init and the unit tests never
+    // touched `credential`, so nothing caught it).
+    const crypto = await import('node:crypto');
+    const firebaseAdmin = (await import('firebase-admin')) as unknown as {
+      default?: Record<string, unknown>;
+    } & Record<string, unknown>;
+    const admin = (firebaseAdmin.default ?? firebaseAdmin) as Record<string, unknown> & {
+      getApps?: () => unknown[];
+      deleteApp?: (app: unknown) => Promise<void>;
+    };
+    // The namespace really is the v14 shape here — without this the test
+    // would silently stop covering the failure it exists for.
+    expect(admin.credential).toBeUndefined();
+    expect(typeof admin.cert).toBe('function');
+    expect(typeof admin.getApps).toBe('function');
+
+    const g = globalThis as unknown as Record<string, unknown>;
+    const had = {
+      project: process.env.FIREBASE_PROJECT_ID,
+      email: process.env.FIREBASE_CLIENT_EMAIL,
+      key: process.env.FIREBASE_PRIVATE_KEY,
+    };
+    // Force a cold init on the credential path: drop the cached app (and the
+    // default app any earlier test created) so `cert()` actually runs.
+    delete g.__loylFirebaseAdmin;
+    delete g.__loylFirebaseAdminInit;
+    delete g.__loylFirebaseAdminError;
+    const getApps = admin.getApps ?? (() => []);
+    await Promise.all(getApps().map((app) => admin.deleteApp?.(app) ?? Promise.resolve()));
+
+    const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    process.env.FIREBASE_PROJECT_ID = 'credential-probe';
+    process.env.FIREBASE_CLIENT_EMAIL = 'probe@credential-probe.iam.gserviceaccount.com';
+    process.env.FIREBASE_PRIVATE_KEY = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+
+    const codes: string[] = [];
+    const warns: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warns.push(args.map(String).join(' '));
+      if (typeof args[1] === 'string') codes.push(args[1]);
+    };
+    try {
+      // Init must succeed (otherwise "Admin app unavailable"), and the live
+      // path must reject malformed input with a genuine SDK code.
+      await expect(verifyFirebaseIdToken('x'.repeat(500))).resolves.toBeNull();
+    } finally {
+      console.warn = origWarn;
+      // Drop every app (incl. any earlier test's) and leave the cache empty:
+      // the next verify cold-inits fresh instead of reusing a deleted app.
+      await Promise.all(getApps().map((app) => admin.deleteApp?.(app) ?? Promise.resolve()));
+      delete g.__loylFirebaseAdmin;
+      delete g.__loylFirebaseAdminInit;
+      delete g.__loylFirebaseAdminError;
+      if (had.project === undefined) delete process.env.FIREBASE_PROJECT_ID;
+      else process.env.FIREBASE_PROJECT_ID = had.project;
+      if (had.email === undefined) delete process.env.FIREBASE_CLIENT_EMAIL;
+      else process.env.FIREBASE_CLIENT_EMAIL = had.email;
+      if (had.key === undefined) delete process.env.FIREBASE_PRIVATE_KEY;
+      else process.env.FIREBASE_PRIVATE_KEY = had.key;
+    }
+    expect(warns.join('\n')).not.toMatch(/Admin app unavailable/);
+    expect(codes).toContain('auth/argument-error');
+  });
+
   it('resolves jwks-rsa -> jose through a require()-able CJS build', async () => {
     // Regression: firebase-admin -> jwks-rsa declares jose@^6, which is
     // `"type":"module"` with NO `require` condition. Vercel's runtime rejects

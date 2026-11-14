@@ -31,9 +31,21 @@ interface AdminApp {
 
 /** The subset of the firebase-admin namespace this module uses. */
 interface AdminNamespace {
+  /**
+   * v12/v13 root shape. firebase-admin v14 removed `apps` and the whole
+   * `credential` namespace from the root export — reading either one on v14
+   * yields `undefined`, which used to throw `Cannot read properties of
+   * undefined (reading 'cert')` during init and 401 EVERY real sign-in
+   * (only when FIREBASE_PRIVATE_KEY is set: the verify-only path never
+   * touched `credential`, and unit tests run without that env var).
+   */
   apps?: AdminApp[];
+  credential?: { cert: (options: Record<string, unknown>) => unknown };
+  /** v14 replacements: top-level factory + lifecycle helpers. */
+  getApps?: () => AdminApp[];
+  getApp?: () => AdminApp;
+  cert?: (options: Record<string, unknown>) => unknown;
   initializeApp: (options: Record<string, unknown>) => AdminApp;
-  credential: { cert: (options: Record<string, unknown>) => unknown };
 }
 
 /** The subset of `firebase-admin/auth` this module uses. */
@@ -122,23 +134,38 @@ async function getAdminApp(): Promise<AdminApp | null> {
   const init = (async () => {
     try {
       const admin = await loadAdminNamespace();
-      if (admin.apps?.length) {
-        globalAdmin.__loylFirebaseAdmin = admin.apps[0];
+      // Reuse an already-initialized app. v12/v13 track it via `apps`;
+      // v14 removed `apps` in favour of `getApps()`.
+      const existing = admin.getApps?.() ?? admin.apps ?? [];
+      if (existing.length) {
+        globalAdmin.__loylFirebaseAdmin = existing[0];
         return globalAdmin.__loylFirebaseAdmin;
       }
       // Verify-only init needs no secret (ID-token checks use Google's public
       // certs); attach full credentials only when a real private key is set.
       const privateKey = getPrivateKey();
-      const app = privateKey
-        ? admin.initializeApp({
-            credential: admin.credential.cert({
-              projectId: process.env.FIREBASE_PROJECT_ID,
-              clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-              privateKey,
-            }),
-            projectId: process.env.FIREBASE_PROJECT_ID,
-          })
-        : admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID });
+      let app: AdminApp;
+      if (privateKey) {
+        // v12/v13: `credential.cert`; v14 dropped the `credential` namespace
+        // and exports `cert` at the root — reading `credential` on v14 was
+        // `undefined`, so `credential.cert(...)` threw and every sign-in with
+        // credentials configured 401'd.
+        const cert = admin.credential?.cert.bind(admin.credential) ?? admin.cert;
+        if (!cert) {
+          throw new Error('firebase-admin exposes neither credential.cert nor cert');
+        }
+        const credential = cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey,
+        });
+        app = admin.initializeApp({
+          credential,
+          projectId: process.env.FIREBASE_PROJECT_ID,
+        });
+      } else {
+        app = admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID });
+      }
       globalAdmin.__loylFirebaseAdmin = app;
       return app;
     } catch (err) {

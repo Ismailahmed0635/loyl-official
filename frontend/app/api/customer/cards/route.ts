@@ -21,6 +21,21 @@ export interface CustomerCardItem {
   state: CardState;
 }
 
+/**
+ * A check-in that is waiting for the shop to approve it. The stamp row does
+ * not exist until approval, so this is the customer's only visibility into a
+ * pending visit (Phase 9 flow surfaced as a real-user complaint).
+ */
+export interface CustomerPendingItem {
+  requestId: string;
+  merchantId: string;
+  businessName: string;
+  category: string;
+  logoUrl: string | null;
+  offerTitle: string;
+  requestedAt: string;
+}
+
 const offerSelect = {
   id: true,
   title: true,
@@ -85,8 +100,35 @@ export const GET = withCustomer(async (req: NextRequest, session, customerPhone)
       });
     }
 
+    // Pending check-ins: one row per open request (pendingKey is unique per
+    // merchant, so this list has at most one entry per shop).
+    const pendingRows = await db.scanRequest.findMany({
+      where: { customerPhone, status: 'PENDING', deletedAt: null },
+      include: {
+        merchant: {
+          select: { id: true, businessName: true, category: true, logoUrl: true, logoPath: true, deletedAt: true },
+        },
+        offer: { select: { title: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const pendingRequests: CustomerPendingItem[] = [];
+    for (const row of pendingRows) {
+      if (row.merchant.deletedAt) continue;
+      pendingRequests.push({
+        requestId: row.id,
+        merchantId: row.merchantId,
+        businessName: row.merchant.businessName,
+        category: row.merchant.category,
+        logoUrl: merchantLogoUrl(row.merchant),
+        offerTitle: row.offer.title,
+        requestedAt: row.createdAt.toISOString(),
+      });
+    }
+
     return apiSuccess({
       cards,
+      pendingRequests,
       totals: {
         cards: cards.length,
         stampsCollected: cards.reduce((sum, c) => sum + c.state.stampsCollected, 0),

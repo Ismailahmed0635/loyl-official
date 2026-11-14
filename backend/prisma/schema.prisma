@@ -51,14 +51,15 @@ enum PaymentMethod {
   NAGAD
 }
 
-/// Phase 7: access tier granted by an admin approval.
-/// FREE = manual free-tier approval (no expiry); MONTHLY = 30d;
-/// YEARLY/PREMIUM = 365d (premium entitlements gate later phases).
+/// Phase 7: access tier granted by an admin approval. Matches the landing
+/// pricing (all monthly): FREE = 3-day trial (scratch only); STARTER = ৳500/mo
+/// (1 branch, all features); GROWTH = ৳1000/mo (up to 3 branches);
+/// ENTERPRISE = custom price (unlimited locations).
 enum SubscriptionTier {
   FREE
-  MONTHLY
-  YEARLY
-  PREMIUM
+  STARTER
+  GROWTH
+  ENTERPRISE
 }
 
 model Merchant {
@@ -263,7 +264,7 @@ model PaymentRequest {
   trxId         String?          @unique
   amount        Decimal          @db.Decimal(10, 2) @default(0)
   /// Tier the merchant asked for at checkout (admin can override on approve).
-  requestedTier SubscriptionTier @default(MONTHLY)
+  requestedTier SubscriptionTier @default(STARTER)
   /// Screenshot filename (bare filename in the payment-screenshots store) — cleared when reviewed.
   screenshotPath String?
   status        PaymentStatus    @default(PENDING)

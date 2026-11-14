@@ -28,18 +28,18 @@ function realBytes(sig: number[], total: number): Uint8Array {
 describe('Phase 7 tier grants', () => {
   const now = new Date('2026-09-24T00:00:00.000Z');
 
-  it('grants the right expiry per tier (3d trial / 30d / 365d / 365d)', () => {
-    const monthly = subscriptionGrant('MONTHLY', now);
-    expect(monthly.subscriptionStatus).toBe('ACTIVE');
-    expect(monthly.subscriptionTier).toBe('MONTHLY');
-    expect(monthly.subscriptionExpiresAt?.getTime()).toBe(now.getTime() + 30 * 86400000);
+  it('grants the right expiry per tier (3d trial / 30d monthly × 3)', () => {
+    const starter = subscriptionGrant('STARTER', now);
+    expect(starter.subscriptionStatus).toBe('ACTIVE');
+    expect(starter.subscriptionTier).toBe('STARTER');
+    expect(starter.subscriptionExpiresAt?.getTime()).toBe(now.getTime() + 30 * 86400000);
 
-    const yearly = subscriptionGrant('YEARLY', now);
-    expect(yearly.subscriptionExpiresAt?.getTime()).toBe(now.getTime() + 365 * 86400000);
+    const growth = subscriptionGrant('GROWTH', now);
+    expect(growth.subscriptionExpiresAt?.getTime()).toBe(now.getTime() + 30 * 86400000);
 
-    const premium = subscriptionGrant('PREMIUM', now);
-    expect(premium.subscriptionStatus).toBe('ACTIVE');
-    expect(premium.subscriptionExpiresAt?.getTime()).toBe(now.getTime() + 365 * 86400000);
+    const enterprise = subscriptionGrant('ENTERPRISE', now);
+    expect(enterprise.subscriptionStatus).toBe('ACTIVE');
+    expect(enterprise.subscriptionExpiresAt?.getTime()).toBe(now.getTime() + 30 * 86400000);
 
     // FREE is a 3-day trial, never "no expiry" (owner decision 2026-10-03).
     const free = subscriptionGrant('FREE', now);
@@ -50,10 +50,10 @@ describe('Phase 7 tier grants', () => {
 
   it('covers every tier in the duration map', () => {
     expect(Object.keys(TIER_DURATION_DAYS).sort()).toEqual([
+      'ENTERPRISE',
       'FREE',
-      'MONTHLY',
-      'PREMIUM',
-      'YEARLY',
+      'GROWTH',
+      'STARTER',
     ]);
   });
 });

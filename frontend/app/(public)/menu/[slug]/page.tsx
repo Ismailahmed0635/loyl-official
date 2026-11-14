@@ -9,7 +9,8 @@ import {
   normalizeHexColor,
   surfaceOn,
 } from '@/backend/menu';
-import { pageMetadata } from '@/lib/metadata';
+import { pageMetadata, APP_URL } from '@/lib/metadata';
+import { buildMenuJsonLd } from '@/backend/menu';
 
 /**
  * Public menu page — Phase 12 Digital Menu Card.
@@ -45,8 +46,20 @@ const loadMenu = cache(async (rawSlug: string) => {
       title: true,
       backgroundHex: true,
       publishedAt: true,
+      updatedAt: true,
       merchant: {
-        select: { businessName: true, category: true },
+        select: {
+          businessName: true,
+          category: true,
+          websiteUrl: true,
+          facebookUrl: true,
+          instagramUrl: true,
+          branches: {
+            where: { deletedAt: null },
+            orderBy: { createdAt: 'asc' },
+            select: { branchName: true, address: true },
+          },
+        },
       },
       categories: {
         orderBy: { sortOrder: 'asc' },
@@ -78,9 +91,10 @@ export async function generateMetadata({
   const menu = await loadMenu(slug);
   if (!menu) return { title: 'Menu not found' };
 
+  const area = menu.merchant.branches[0]?.address?.trim();
   const description = `Menu for ${menu.merchant.businessName}${
     menu.merchant.category ? ` — ${menu.merchant.category}` : ''
-  }.`;
+  }${area ? `, ${area}` : ''} View items and prices.`;
 
   // Published menus are the one crawlable surface (robots.txt allows /menu/),
   // so this page opts into indexing over the root layout's noindex default.
@@ -104,12 +118,37 @@ export default async function PublicMenuPage({ params }: { params: Promise<{ slu
   const foreground = contrastOn(background);
   const surface = surfaceOn(background);
   const hasItems = menu.categories.some((cat) => cat.items.length > 0);
+  const firstBranch = menu.merchant.branches[0];
+  const jsonLd = buildMenuJsonLd({
+    slug,
+    title: menu.title,
+    businessName: menu.merchant.businessName,
+    category: menu.merchant.category,
+    address: firstBranch?.address,
+    branchName: firstBranch?.branchName,
+    baseUrl: APP_URL,
+  });
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Menus', item: `${APP_URL.replace(/\/+$/, '')}/menus` },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: menu.merchant.businessName,
+        item: `${APP_URL.replace(/\/+$/, '')}/menu/${slug}`,
+      },
+    ],
+  };
 
   return (
     <main
       className="min-h-screen px-5 py-8 sm:px-8 font-body-md text-body-md antialiased"
       style={{ backgroundColor: background, color: foreground }}
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       <div className="mx-auto w-full max-w-2xl">
         <header className="pb-6">
           <p className="font-label-sm text-label-sm uppercase tracking-wider opacity-70">
@@ -196,6 +235,40 @@ export default async function PublicMenuPage({ params }: { params: Promise<{ slu
           <p>
             {menu.merchant.businessName} · Updated{' '}
             {menu.publishedAt ? new Date(menu.publishedAt).toLocaleDateString('en-GB') : ''}
+          </p>
+          {menu.merchant.branches.length > 0 && (
+            <address className="mt-2 not-italic opacity-80">
+              {menu.merchant.branches.map((b) => (
+                <span key={b.branchName} className="mr-2">
+                  {b.branchName}
+                  {b.address ? ` — ${b.address}` : ''}
+                </span>
+              ))}
+            </address>
+          )}
+          {(menu.merchant.websiteUrl || menu.merchant.facebookUrl || menu.merchant.instagramUrl) && (
+            <p className="mt-2 flex flex-wrap gap-3">
+              {menu.merchant.websiteUrl && (
+                <a href={menu.merchant.websiteUrl} className="underline" rel="noopener">
+                  Website
+                </a>
+              )}
+              {menu.merchant.facebookUrl && (
+                <a href={menu.merchant.facebookUrl} className="underline" rel="noopener">
+                  Facebook
+                </a>
+              )}
+              {menu.merchant.instagramUrl && (
+                <a href={menu.merchant.instagramUrl} className="underline" rel="noopener">
+                  Instagram
+                </a>
+              )}
+            </p>
+          )}
+          <p className="mt-2">
+            <a href="/menus" className="underline">
+              All menus in Bangladesh
+            </a>
           </p>
         </footer>
       </div>

@@ -3,8 +3,7 @@ import { apiError } from '@/backend/api/response';
 import { emailSessionSchema } from '@/backend/validation/schemas';
 import { verifyFirebaseIdToken, isFirebaseConfigured } from '@/backend/firebase';
 import {
-  checkRateLimit,
-  recordHit,
+  rateLimitGate,
   clientIpKey,
   EMAIL_SESSION_IP,
 } from '@/backend/rateLimit';
@@ -40,13 +39,12 @@ export async function POST(req: NextRequest) {
 
     // The email is unknown pre-verify, so throttle the IP.
     const ipKey = clientIpKey((n) => req.headers.get(n));
-    const gate = checkRateLimit(`email-session:${ipKey}`, EMAIL_SESSION_IP);
+    const gate = await rateLimitGate(`email-session:${ipKey}`, EMAIL_SESSION_IP);
     if (!gate.allowed) {
       return apiError('Too many attempts. Please wait a few minutes and try again.', 'RATE_LIMITED', 429, {
         retryAfterMs: gate.retryAfterMs,
       });
     }
-    recordHit(`email-session:${ipKey}`, EMAIL_SESSION_IP);
 
     const decoded = await verifyFirebaseIdToken(validation.data.idToken);
     if (!decoded || !decoded.email) {

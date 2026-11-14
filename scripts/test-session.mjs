@@ -126,7 +126,7 @@ export async function signInCustomer(call, { name, phone }) {
  * DATABASE_URL comes from the shell, else the repo-root .env the Prisma CLI
  * uses (frontend/.env.local never carries it).
  */
-export async function grantActiveSubscription(merchantId, { tier = 'MONTHLY', days = 30 } = {}) {
+export async function grantActiveSubscription(merchantId, { tier = 'STARTER', days = 30 } = {}) {
   if (!process.env.DATABASE_URL) {
     let raw = null;
     try {

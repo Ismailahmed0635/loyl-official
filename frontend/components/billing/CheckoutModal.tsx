@@ -25,7 +25,13 @@ interface CheckoutModalProps {
   onSubmitted?: (tier: BillingTier) => void;
 }
 
-const TIERS: BillingTier[] = ['FREE', 'MONTHLY', 'YEARLY', 'PREMIUM'];
+const TIERS: BillingTier[] = ['FREE', 'STARTER', 'GROWTH', 'ENTERPRISE'];
+
+/** Tier button price caption — Enterprise is custom-priced, not free. */
+function priceCaption(tier: BillingTier, priceBdt: number): string {
+  if (tier === 'ENTERPRISE') return 'Custom';
+  return priceBdt === 0 ? 'Free' : `৳${priceBdt.toLocaleString('en-US')}`;
+}
 
 /**
  * Phase 7 payment modal — shows the personal bKash/Nagad receive numbers,
@@ -34,7 +40,7 @@ const TIERS: BillingTier[] = ['FREE', 'MONTHLY', 'YEARLY', 'PREMIUM'];
  */
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   open,
-  initialTier = 'MONTHLY',
+  initialTier = 'STARTER',
   onClose,
   onSubmitted,
 }) => {
@@ -44,6 +50,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [method, setMethod] = useState<'BKASH' | 'NAGAD'>('BKASH');
   const [senderNumber, setSenderNumber] = useState('');
   const [trxId, setTrxId] = useState('');
+  const [enterpriseAmount, setEnterpriseAmount] = useState('');
+  const [noPay, setNoPay] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -56,6 +64,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setMethod('BKASH');
     setSenderNumber('');
     setTrxId('');
+    setEnterpriseAmount('');
+    setNoPay(false);
     setFile(null);
     setError(null);
     setSubmitting(false);
@@ -73,6 +83,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const plan = planFor(tier);
   const paid = tier !== 'FREE';
+  const enterprise = tier === 'ENTERPRISE';
+  const payNow = paid && !noPay;
 
   function pickFile(event: React.ChangeEvent<HTMLInputElement>) {
     const next = event.target.files?.[0] ?? null;
@@ -96,11 +108,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     try {
       const form = new FormData();
       form.append('requestedTier', tier);
-      if (paid) {
+      if (noPay && paid) {
+        form.append('noPayment', 'true');
+      } else if (paid) {
+        const amount = enterprise ? Number(enterpriseAmount) : plan.priceBdt;
+        if (enterprise && (!Number.isFinite(amount) || amount <= 0)) {
+          setError('Enter the agreed amount for Enterprise.');
+          return;
+        }
         form.append('paymentMethod', method);
         form.append('senderNumber', senderNumber.trim());
         form.append('trxId', trxId.trim());
-        form.append('amount', String(plan.priceBdt));
+        form.append('amount', String(amount));
       }
       if (file) form.append('screenshot', file);
 
@@ -168,9 +187,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               Your {TIER_LABELS[tier]} request is in review
             </p>
             <p className="mx-auto mt-2 max-w-sm font-body-sm text-body-sm text-on-surface-variant">
-              {paid
+              {payNow
                 ? 'We’ll confirm the transfer on our side, then activate your subscription — usually within 24 hours.'
-                : 'We’ll review your free-tier request manually — usually within 24 hours.'}{' '}
+                : 'We’ll review your request manually — usually within 24 hours.'}{' '}
               Track progress on the Billing page.
             </p>
             <Button className="mt-6" variant="primary" size="md" onClick={onClose}>
@@ -203,9 +222,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         {valuePlan.name}
                       </span>
                       <span className="block font-label-sm text-label-sm text-on-surface-variant tabular-nums">
-                        {valuePlan.priceBdt === 0
-                          ? 'Free'
-                          : `৳${valuePlan.priceBdt.toLocaleString('en-US')}`}
+                        {priceCaption(value, valuePlan.priceBdt)}
                       </span>
                     </button>
                   );
@@ -213,12 +230,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
             </fieldset>
 
-            {paid ? (
+            {paid && (
+              <label className="flex min-h-[44px] cursor-pointer items-start gap-3 rounded-input border border-hairline bg-surface-container-low px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={noPay}
+                  onChange={(event) => setNoPay(event.target.checked)}
+                  className="mt-1 h-4 w-4 accent-[#0D472A]"
+                />
+                <span className="font-body-sm text-body-sm text-on-surface">
+                  I haven&apos;t paid yet — request free/manual approval
+                  <span className="block text-on-surface-variant">
+                    The owner reviews it and can grant the plan free of charge.
+                  </span>
+                </span>
+              </label>
+            )}
+
+            {payNow ? (
               <>
                 {/* Personal receive numbers */}
                 <div className="rounded-input border border-hairline bg-surface-container-low p-4">
                   <p className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">
-                    Send ৳{plan.priceBdt.toLocaleString('en-US')} to
+                    {enterprise ? 'Send the agreed amount to' : `Send ৳${plan.priceBdt.toLocaleString('en-US')} to`}
                   </p>
                   <div className="mt-2.5 flex items-center justify-between gap-3">
                     <span className="flex items-center gap-2 font-body-md text-body-md text-on-surface">
@@ -287,15 +321,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 <div className="flex items-center justify-between rounded-input border border-hairline bg-surface-container-low px-4 py-3">
                   <span className="font-body-md text-body-md text-on-surface-variant">Amount</span>
-                  <span className="font-headline-sm text-headline-sm text-brand-green tabular-nums">
-                    ৳{plan.priceBdt.toLocaleString('en-US')}
-                  </span>
+                  {enterprise ? (
+                    <input
+                      type="number"
+                      min={1}
+                      max={1000000}
+                      inputMode="numeric"
+                      placeholder="Agreed ৳"
+                      aria-label="Agreed amount in BDT"
+                      value={enterpriseAmount}
+                      onChange={(event) => setEnterpriseAmount(event.target.value)}
+                      required={payNow}
+                      className="w-36 rounded-input border border-brand-border bg-surface-container-lowest px-3 py-2 text-right font-headline-sm text-headline-sm text-brand-green tabular-nums focus:outline-none focus:border-brand-green"
+                    />
+                  ) : (
+                    <span className="font-headline-sm text-headline-sm text-brand-green tabular-nums">
+                      ৳{plan.priceBdt.toLocaleString('en-US')}
+                    </span>
+                  )}
                 </div>
               </>
             ) : (
               <p className="rounded-input border border-primary-fixed bg-primary-fixed/40 px-4 py-3 font-body-md text-body-md text-on-primary-fixed-variant">
-                No payment needed — tell us you want the free tier and we’ll review the request
-                manually.
+                {tier === 'FREE'
+                  ? 'No payment needed — tell us you want the free trial and we’ll review the request manually.'
+                  : 'No payment details needed — the owner reviews the request and can grant this plan free of charge.'}
               </p>
             )}
 
@@ -336,7 +386,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             )}
 
             <Button type="submit" variant="primary" size="md" isLoading={submitting}>
-              {paid ? `Submit for verification` : 'Request free access'}
+              {payNow ? `Submit for verification` : 'Request free approval'}
             </Button>
             <p className="-mt-2 text-center font-body-sm text-body-sm text-on-surface-variant">
               Requests are reviewed manually — usually within 24 hours.

@@ -114,21 +114,27 @@ async function main() {
   check('/robots.txt is 200 text/plain', robots.status === 200 && (robots.headers.get('content-type') || '').includes('text/plain'), `status ${robots.status}, type ${robots.headers.get('content-type')}`);
   check('robots disallows the whole app by default', /^Disallow:\s*\/\s*$/m.test(robots.text), robots.text);
   check('robots opts in /menu/ for the public menus', /^Allow:\s*\/menu\/\s*$/m.test(robots.text), robots.text);
+  check('robots opts in /menus hub', /^Allow:\s*\/menus\s*$/m.test(robots.text), robots.text);
   check('robots points at the sitemap', /Sitemap:\s*https?:\/\/\S+\/sitemap\.xml\s*$/m.test(robots.text), robots.text);
 
   // --- D. Sitemap --------------------------------------------------------------
   const sitemap = await fetchOf('/sitemap.xml');
   check('/sitemap.xml is 200 xml', sitemap.status === 200 && /xml/.test(sitemap.headers.get('content-type') || ''), `status ${sitemap.status}, type ${sitemap.headers.get('content-type')}`);
   check('sitemap has a urlset', sitemap.text.includes('<urlset'), sitemap.text.slice(0, 200));
-  // Tolerant: empty DB -> empty urlset; a present menu smoke has published one.
+  // Tolerant: empty DB -> hub only; menus publish -> hub + /menu/slug pages.
   if (sitemap.text.includes('<loc>')) {
     const locs = [...sitemap.text.matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => m[1]);
     check(
-      'sitemap urls are /menu/ pages only',
-      locs.length > 0 && locs.every((u) => /\/menu\/[^/]+$/.test(u)),
+      'sitemap urls are the /menus hub + /menu/ pages only',
+      locs.length > 0 && locs.every((u) => /\/menus\/?$/.test(u) || /\/menu\/[^/]+$/.test(u)),
       locs.slice(0, 5).join(', ') || sitemap.text.slice(0, 200)
     );
   }
+
+  // --- D2. Menu hub ------------------------------------------------------------
+  const hub = await fetchOf('/menus');
+  check('/menus hub renders 200', hub.status === 200, `status ${hub.status}`);
+  check('/menus hub links to menu pages or states empty', /\/menu\//.test(hub.text) || /being published/.test(hub.text), hub.text.slice(0, 300));
 
   // --- E. Root 307s into the auth flow; app head stays on /welcome ----------
   // The marketing landing lives on its own host (landing page/, deployed

@@ -100,9 +100,10 @@ export function buildManifest(): MetadataRoute.Manifest {
 
 /**
  * Crawler policy: this origin hosts the auth-gated app, so `Disallow: /` is
- * the default and `Allow: /menu/` opts in the one crawlable surface - the
- * published digital menus. Robots uses longest-match semantics, so
- * `/menu/slug` wins `Allow: /menu/` while `/` stays blocked.
+ * the default and `Allow: /menu/` + `Allow: /menus` opts in the crawlable
+ * surfaces — published digital menus and the public menu directory.
+ * Robots uses longest-match semantics, so `/menu/slug` wins `Allow: /menu/`
+ * while `/` stays blocked.
  *
  * The marketing landing is NOT served here: it is the standalone static site
  * in `landing page/`, deployed to its own host with its own robots.txt, which
@@ -113,7 +114,7 @@ export function buildRobots(base: string = APP_URL): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: '/menu/',
+        allow: ['/menu/', '/menus'],
         disallow: '/',
       },
     ],
@@ -127,10 +128,14 @@ export function buildRobots(base: string = APP_URL): MetadataRoute.Robots {
  * `/` is deliberately absent - it redirects to /welcome on this origin, and a
  * redirect target must never be advertised.
  */
-export function buildSitemapEntries(slugs: string[], base: string = APP_URL): MetadataRoute.Sitemap {
+export function buildSitemapEntries(
+  slugs: string[],
+  base: string = APP_URL,
+  updatedBySlug?: Map<string, Date>
+): MetadataRoute.Sitemap {
   return slugs.map((slug) => ({
     url: new URL(`/menu/${slug}`, base).toString(),
-    lastModified: new Date(),
+    lastModified: updatedBySlug?.get(slug) ?? new Date(),
     changeFrequency: 'weekly' as const,
     priority: 0.6,
   }));

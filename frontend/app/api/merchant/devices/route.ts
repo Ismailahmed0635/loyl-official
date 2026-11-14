@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/backend/api/response';
 import { withMerchant } from '@/backend/api/handler';
-import { checkRateLimit, recordHit, MUTATION_MERCHANT } from '@/backend/rateLimit';
+import { rateLimitGate, MUTATION_MERCHANT } from '@/backend/rateLimit';
 import { deviceRegisterSchema } from '@/backend/validation/schemas';
 import { registerMerchantDevice, toDeviceSummary } from '@/backend/devices';
 import { recordSecurityAlert } from '@/backend/alerts';
@@ -46,13 +46,12 @@ export const GET = withMerchant(async (req: NextRequest, session, merchant) => {
  * stored public key instead of creating a duplicate device.
  */
 export const POST = withMerchant(async (req: NextRequest, session, merchant) => {
-  const gate = checkRateLimit(`devices:${merchant.id}`, MUTATION_MERCHANT);
+  const gate = await rateLimitGate(`devices:${merchant.id}`, MUTATION_MERCHANT);
   if (!gate.allowed) {
     return apiError('Too many attempts. Please wait a few minutes and try again.', 'RATE_LIMITED', 429, {
       retryAfterMs: gate.retryAfterMs,
     });
   }
-  recordHit(`devices:${merchant.id}`, MUTATION_MERCHANT);
 
   try {
     const body = await req.json().catch(() => null);

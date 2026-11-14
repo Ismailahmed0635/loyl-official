@@ -11,39 +11,49 @@ export default function PricingPage() {
   const plans = [
     {
       name: 'Free',
-      price: 'Free',
+      price: '৳0/mo',
       features: [
-        'Basic stamp card (up to 10 stamps)',
-        'Standard offers',
-        'QR code generation',
-        'Email support',
+        '1 location',
+        'Scratch card offers only',
+        'Printable QR kit',
+        'Basic analytics',
       ],
     },
     {
-      name: 'Monthly',
-      price: '৳ 299/mo',
+      name: 'Starter',
+      price: '৳500/mo',
       features: [
-        'Unlimited stamp cards',
-        'Advanced analytics',
+        '1 branch, all features',
+        'Digital menu included',
+        'Unlimited stamp scans',
         'Priority support',
-        'Custom branding',
       ],
     },
     {
-      name: 'Yearly',
-      price: '৳ 2,999/yr',
+      name: 'Growth',
+      price: '৳1,000/mo',
       features: [
-        'All Monthly features',
-        'Discounted rate (2 months free)',
+        'Up to 3 branches',
+        'Everything in Starter',
+        'GPS auto-store detection',
+        'Dedicated priority support',
+      ],
+    },
+    {
+      name: 'Enterprise',
+      price: 'Custom',
+      features: [
+        'Unlimited locations',
+        'White-label options',
+        'POS & ERP integration support',
         'Dedicated account manager',
-        'API access',
       ],
     },
   ];
 
   return (
     <main className="min-h-screen bg-surface-container-lowest flex items-center justify-center p-4 md:p-8">
-      <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-panel shadow-ambient p-8 md:p-12">
+      <div className="relative w-full max-w-md mx-auto md:max-w-2xl lg:max-w-6xl bg-surface-container-lowest rounded-panel shadow-ambient p-8 md:p-12">
         <h1 className="text-3xl font-bold text-brand-green mb-6 tracking-tight">
           Pricing
         </h1>
@@ -53,7 +63,7 @@ export default function PricingPage() {
           period for new merchants.
         </p>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {plans.map((plan) => (
             <div
               key={plan.name}
@@ -87,7 +97,7 @@ export default function PricingPage() {
 
         <div className="mt-8 pt-8 border-t border-hairline">
           <p className="text-xs text-on-surface-variant">
-            No credit card required to start. All plans include a 7-day free trial.
+            No payment required to start. Paid plans include a 3-day free trial.
           </p>
         </div>
       </div>

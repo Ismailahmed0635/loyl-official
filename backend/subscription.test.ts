@@ -24,7 +24,7 @@ function trialMerchant(signUpAgoMs = DAY) {
   };
 }
 
-function paidMerchant(expiresAt: Date | null, tier: 'MONTHLY' | 'YEARLY' | 'PREMIUM' = 'MONTHLY') {
+function paidMerchant(expiresAt: Date | null, tier: 'STARTER' | 'GROWTH' | 'ENTERPRISE' = 'STARTER') {
   return { subscriptionTier: tier, subscriptionExpiresAt: expiresAt, createdAt: new Date('2026-01-01') };
 }
 

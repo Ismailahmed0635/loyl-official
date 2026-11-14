@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { apiError } from '@/backend/api/response';
 import { customerSessionSchema } from '@/backend/validation/schemas';
 import {
-  checkRateLimit,
-  recordHit,
+  rateLimitGate,
   clientIpKey,
   CUSTOMER_SESSION_IP,
 } from '@/backend/rateLimit';
@@ -26,13 +25,12 @@ export async function POST(req: NextRequest) {
     }
 
     const ipKey = clientIpKey((n) => req.headers.get(n));
-    const gate = checkRateLimit(`customer-session:${ipKey}`, CUSTOMER_SESSION_IP);
+    const gate = await rateLimitGate(`customer-session:${ipKey}`, CUSTOMER_SESSION_IP);
     if (!gate.allowed) {
       return apiError('Too many attempts. Please wait a few minutes and try again.', 'RATE_LIMITED', 429, {
         retryAfterMs: gate.retryAfterMs,
       });
     }
-    recordHit(`customer-session:${ipKey}`, CUSTOMER_SESSION_IP);
 
     const customerName = validation.data.name.trim();
     const cleanPhone = validation.data.phoneNumber.replace(/^\+88/, '');

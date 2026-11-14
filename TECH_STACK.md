@@ -10,6 +10,9 @@
 
 ### 2. Backend & Logic Layer
 - **Environment:** Next.js API Routes (Node.js runtime).
+- **Shared state:** Upstash Redis (REST) — cross-instance rate limits, session
+  revocation, hot-read cache (`backend/redis.ts`, `@upstash/redis`). Unset =
+  in-memory fallback (local dev).
 - **QR & Image Automation:** 
   - `qrcode` library for generating dynamic QR code data.
   - `sharp` library for server-side image processing (merging the generated QR code onto the merchant's uploaded poster template).

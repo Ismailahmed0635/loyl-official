@@ -10,6 +10,7 @@ import type {
   SaveMenuInput,
   MenuDraft,
 } from '@/backend/validation/schemas';
+import { abortError } from '@/lib/fetchErrors';
 import { invalidate } from '@/lib/api/cache';
 
 // Re-exported so components can type drafts from this module alone.
@@ -47,7 +48,12 @@ export interface OfferQrResponse {
 const API_TIMEOUT_MS = 15_000;
 
 async function request(path: string, init?: RequestInit) {
-  const res = await fetch(path, { ...init, signal: AbortSignal.timeout(API_TIMEOUT_MS) });
+  const res = await fetch(path, { ...init, signal: AbortSignal.timeout(API_TIMEOUT_MS) }).catch(
+    (e) => {
+      // Never let "signal timed out" reach a page's error banner verbatim.
+      throw abortError(e) ?? e;
+    }
+  );
   return res.json();
 }
 
